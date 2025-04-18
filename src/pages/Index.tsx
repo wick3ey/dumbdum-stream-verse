@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatMessage from '@/components/ChatMessage';
@@ -16,9 +17,11 @@ import {
   subscribeToDonations,
   subscribeToChallenge,
   createDonation,
-  updateViewerCount
+  updateViewerCount,
+  createChallenge
 } from '@/services/supabaseService';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Types - using consistent type for Message that matches ChatPanel's expected type
 export type Message = {
@@ -65,6 +68,37 @@ const Index = () => {
   const [targetReached, setTargetReached] = useState(false);
   const [secondChallenge, setSecondChallenge] = useState('SHITBACK');
   const [secondChallengeProgress, setSecondChallengeProgress] = useState(65);
+  
+  // User persistent identifiers
+  const [userAvatarColor] = useState(() => {
+    const storedColor = localStorage.getItem('userAvatarColor');
+    if (storedColor && AVATAR_COLORS.includes(storedColor)) {
+      return storedColor;
+    }
+    const newColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+    localStorage.setItem('userAvatarColor', newColor);
+    return newColor;
+  });
+  
+  const [userEmoji] = useState(() => {
+    const storedEmoji = localStorage.getItem('userEmoji');
+    if (storedEmoji && EMOJIS.includes(storedEmoji)) {
+      return storedEmoji;
+    }
+    const newEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    localStorage.setItem('userEmoji', newEmoji);
+    return newEmoji;
+  });
+  
+  const [usernameColor] = useState(() => {
+    const storedColor = localStorage.getItem('userTextColor');
+    if (storedColor && USERNAME_COLORS.includes(storedColor)) {
+      return storedColor;
+    }
+    const newColor = USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
+    localStorage.setItem('userTextColor', newColor);
+    return newColor;
+  });
 
   // Effect to fetch the active challenge on component mount
   useEffect(() => {
@@ -92,14 +126,14 @@ const Index = () => {
 
     // Subscribe to chat messages
     const unsubscribeChat = subscribeToChatMessages(DEMO_CHANNEL_ID, (newMessage) => {
-      const randomEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+      const randomEmoji = newMessage.emoji || EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
       const randomAvatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
       const randomUsernameColor = USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
       const randomMessageColor = MESSAGE_COLORS[Math.floor(Math.random() * MESSAGE_COLORS.length)];
 
       const formattedMessage: Message = {
         id: newMessage.id,
-        username: newMessage.username || 'User',
+        username: newMessage.username || 'Anonymous',
         message: newMessage.message,
         emoji: randomEmoji,
         type: 'chat',
@@ -108,7 +142,7 @@ const Index = () => {
         messageColor: randomMessageColor
       };
 
-      setMessages(prev => [...prev.slice(-19), formattedMessage]);
+      setMessages(prev => [...prev.slice(-49), formattedMessage]);
     });
 
     // Subscribe to donations
@@ -119,7 +153,7 @@ const Index = () => {
 
       const formattedDonation: Message = {
         id: newDonation.id,
-        username: newDonation.username || 'User',
+        username: newDonation.username || 'Anonymous',
         message: 'contributed',
         emoji: randomEmoji,
         type: 'donation',
@@ -129,11 +163,42 @@ const Index = () => {
         messageColor: 'text-white'
       };
 
-      setMessages(prev => [...prev.slice(-19), formattedDonation]);
+      setMessages(prev => [...prev.slice(-49), formattedDonation]);
+      
+      // Update the current amount for the active challenge
+      setCurrentAmount(prevAmount => {
+        const newAmount = prevAmount + Number(newDonation.amount);
+        if (newAmount >= targetAmount && !targetReached) {
+          setTargetReached(true);
+          
+          // Add system message for target reached
+          const systemMessage: Message = {
+            id: Date.now(),
+            username: 'SYSTEM',
+            message: `TARGET REACHED! Time to ${challengeName.toLowerCase()}!`,
+            emoji: '🎉',
+            type: 'chat',
+            avatarColor: 'bg-neon-red',
+            usernameColor: 'text-neon-red',
+            messageColor: 'text-neon-yellow'
+          };
+          
+          setMessages(prev => [...prev.slice(-49), systemMessage]);
+          
+          toast({
+            title: "Challenge completed!",
+            description: `${challengeName} target reached!`,
+            variant: "default",
+          });
+        }
+        return newAmount;
+      });
     });
 
     // Subscribe to challenge updates
     const unsubscribeChallenge = subscribeToChallenge(DEMO_CHANNEL_ID, (updatedChallenge) => {
+      setChallengeName(updatedChallenge.name);
+      setTargetAmount(Number(updatedChallenge.target_amount));
       setCurrentAmount(Number(updatedChallenge.current_amount));
       setTargetReached(updatedChallenge.is_completed || Number(updatedChallenge.current_amount) >= Number(updatedChallenge.target_amount));
 
@@ -148,7 +213,7 @@ const Index = () => {
         const systemMessage: Message = {
           id: Date.now(),
           username: 'SYSTEM',
-          message: 'TARGET REACHED! Time to drink piss!',
+          message: `TARGET REACHED! Time to ${updatedChallenge.name.toLowerCase()}!`,
           emoji: '🎉',
           type: 'chat',
           avatarColor: 'bg-neon-red',
@@ -156,7 +221,7 @@ const Index = () => {
           messageColor: 'text-neon-yellow'
         };
 
-        setMessages(prev => [...prev.slice(-19), systemMessage]);
+        setMessages(prev => [...prev.slice(-49), systemMessage]);
       }
     });
 
@@ -178,7 +243,7 @@ const Index = () => {
       // Simulate viewer leaving
       updateViewerCount(DEMO_CHANNEL_ID, -1).catch(console.error);
     };
-  }, [challengeName, targetReached, toast]);
+  }, [challengeName, targetReached, toast, targetAmount]);
 
   // Function to send chat message
   const handleSendMessage = async (message: string) => {
@@ -189,8 +254,22 @@ const Index = () => {
         channel_id: DEMO_CHANNEL_ID,
         user_id: user.id,
         message: message,
-        emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)]
+        emoji: userEmoji
       });
+      
+      // Optimistically add the message to the UI
+      const newMessage: Message = {
+        id: `temp-${Date.now()}`,
+        username: user.user_metadata.username || user.email?.split('@')[0] || 'You',
+        message: message,
+        emoji: userEmoji,
+        type: 'chat',
+        avatarColor: userAvatarColor,
+        usernameColor: usernameColor,
+        messageColor: 'text-white'
+      };
+      
+      setMessages(prev => [...prev.slice(-49), newMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -216,11 +295,93 @@ const Index = () => {
         title: "Thank you!",
         description: `You donated $${amount}!`,
       });
+      
+      // Optimistically add the donation to the UI
+      const newDonation: Message = {
+        id: `temp-${Date.now()}`,
+        username: user.user_metadata.username || user.email?.split('@')[0] || 'You',
+        message: 'contributed',
+        emoji: userEmoji,
+        type: 'donation',
+        amount: amount,
+        avatarColor: userAvatarColor,
+        usernameColor: usernameColor,
+        messageColor: 'text-white'
+      };
+      
+      setMessages(prev => [...prev.slice(-49), newDonation]);
+      
+      // Update the current amount locally for immediate feedback
+      setCurrentAmount(prev => {
+        const newAmount = prev + amount;
+        if (newAmount >= targetAmount && !targetReached) {
+          setTargetReached(true);
+          
+          // Add system message
+          const systemMessage: Message = {
+            id: Date.now(),
+            username: 'SYSTEM',
+            message: `TARGET REACHED! Time to ${challengeName.toLowerCase()}!`,
+            emoji: '🎉',
+            type: 'chat',
+            avatarColor: 'bg-neon-red',
+            usernameColor: 'text-neon-red',
+            messageColor: 'text-neon-yellow'
+          };
+          setMessages(prev => [...prev.slice(-49), systemMessage]);
+        }
+        return newAmount;
+      });
+      
     } catch (error) {
       console.error('Error creating donation:', error);
       toast({
         title: "Error",
         description: "Failed to process donation",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Function to create a new challenge
+  const handleCreateChallenge = async (challengeName: string, targetAmount: number) => {
+    if (!user || !challengeName.trim()) return;
+    
+    try {
+      await createChallenge({
+        channel_id: DEMO_CHANNEL_ID,
+        name: challengeName.toUpperCase(),
+        target_amount: targetAmount
+      });
+      
+      // Set the new challenge locally
+      setChallengeName(challengeName.toUpperCase());
+      setTargetAmount(targetAmount);
+      setCurrentAmount(0);
+      setTargetReached(false);
+      
+      // Add system message
+      const systemMessage: Message = {
+        id: Date.now(),
+        username: 'SYSTEM',
+        message: `NEW CHALLENGE: ${challengeName.toUpperCase()} - $${targetAmount} GOAL`,
+        emoji: '🔥',
+        type: 'chat',
+        avatarColor: 'bg-neon-red',
+        usernameColor: 'text-neon-red',
+        messageColor: 'text-neon-yellow'
+      };
+      setMessages(prev => [...prev.slice(-49), systemMessage]);
+      
+      toast({
+        title: "Challenge created!",
+        description: `New challenge: ${challengeName.toUpperCase()} with $${targetAmount} target`,
+      });
+    } catch (error) {
+      console.error('Error creating challenge:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create challenge",
         variant: "destructive",
       });
     }
@@ -246,12 +407,17 @@ const Index = () => {
           </div>
           
           {user && (
-            <button
-              onClick={() => signOut()}
-              className="bg-stream-panel border border-stream-border px-3 py-1 text-sm hover:bg-stream-border rounded"
-            >
-              Log Out
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="hidden md:block text-sm">
+                {user.user_metadata.username || user.email?.split('@')[0] || 'User'}
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="bg-stream-panel border border-stream-border px-3 py-1 text-sm hover:bg-stream-border rounded"
+              >
+                Log Out
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -286,6 +452,7 @@ const Index = () => {
             <div className="flex items-center gap-2">
               <DonateButton amount={5} onDonate={handleDonate} />
               <DonateButton amount={10} onDonate={handleDonate} />
+              <DonateButton amount={20} onDonate={handleDonate} />
             </div>
           </div>
         </div>
@@ -307,6 +474,7 @@ const Index = () => {
             <ChatPanel 
               messages={messages} 
               onSendMessage={handleSendMessage} 
+              onCreateChallenge={handleCreateChallenge}
             />
           </div>
         </div>
