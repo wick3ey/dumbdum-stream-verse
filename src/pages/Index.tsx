@@ -143,8 +143,14 @@ const Index = () => {
         const challenges = await getRequestedChallenges(DEMO_CHANNEL_ID);
         if (challenges && challenges.length > 0) {
           const formattedChallenges: Challenge[] = challenges.map(c => {
-            // Extract userId safely from any possible field name
-            const userId = c.user_id || '';
+            let userId = '';
+            
+            if ('user_id' in c && typeof c.user_id === 'string') {
+              userId = c.user_id;
+            }
+            else if ('userId' in c && typeof (c as any).userId === 'string') {
+              userId = (c as any).userId;
+            }
             
             return {
               id: c.id,

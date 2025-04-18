@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Progress } from "@/components/progress";
+import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { 
   CircleDollarSign, 
