@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
@@ -204,12 +203,12 @@ export const subscribeToDonations = (channelId: string, callback: (donation: any
 // Challenge services
 export const getActiveChallenge = async (channelId: string) => {
   try {
-    // Fix: För att undvika "eq(...).eq is not a function", använd filter istället
     const { data, error } = await supabase
       .from('challenges')
       .select('*')
       .eq('channel_id', channelId)
       .eq('is_completed', false)
+      .eq('status', 'active')
       .order('created_at', { ascending: false })
       .maybeSingle();
 
@@ -224,6 +223,7 @@ export const getActiveChallenge = async (channelId: string) => {
         target_amount: 20,
         current_amount: 0,
         is_completed: false,
+        status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       } as Challenge;
@@ -236,19 +236,37 @@ export const getActiveChallenge = async (channelId: string) => {
   }
 };
 
-export const createChallenge = async (challenge: { channel_id: string; name: string; target_amount: number }) => {
+export const getRequestedChallenges = async (channelId: string) => {
   try {
-    // Fix: För att undvika "eq(...).eq is not a function", använd en annan metod
+    const { data, error } = await supabase
+      .from('challenges')
+      .select('*')
+      .eq('channel_id', channelId)
+      .eq('status', 'requested')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    // Return empty array if none found
+    return data as Challenge[] || [];
+  } catch (error) {
+    console.error("Error fetching requested challenges:", error);
+    throw error;
+  }
+};
+
+export const createChallenge = async (challenge: { channel_id: string; name: string; user_id: string }) => {
+  try {
     const existingChallenges = await supabase
       .from('challenges')
       .select('*')
       .eq('channel_id', challenge.channel_id)
       .eq('name', challenge.name)
-      .eq('is_completed', false);
+      .eq('status', 'requested');
 
     if (existingChallenges.error) throw existingChallenges.error;
     if (existingChallenges.data && existingChallenges.data.length > 0) {
-      throw new Error(`Challenge "${challenge.name}" already exists! Please donate to the existing challenge instead.`);
+      throw new Error(`Challenge "${challenge.name}" already requested! Please donate to the existing challenge instead.`);
     }
 
     const { data, error } = await supabase
@@ -256,13 +274,51 @@ export const createChallenge = async (challenge: { channel_id: string; name: str
       .insert([{
         ...challenge,
         current_amount: 0,
-        is_completed: false
+        target_amount: 0, // Will be set by creator when approving
+        is_completed: false,
+        status: 'requested'
       }]);
 
     if (error) throw error;
     return data?.[0] as Challenge;
   } catch (error) {
     console.error("Error creating challenge:", error);
+    throw error;
+  }
+};
+
+export const approveChallenge = async (challengeId: string, targetAmount: number) => {
+  try {
+    const { data, error } = await supabase
+      .from('challenges')
+      .update({
+        target_amount: targetAmount,
+        status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', challengeId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Challenge;
+  } catch (error) {
+    console.error("Error approving challenge:", error);
+    throw error;
+  }
+};
+
+export const rejectChallenge = async (challengeId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('challenges')
+      .delete()
+      .eq('id', challengeId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error("Error rejecting challenge:", error);
     throw error;
   }
 };

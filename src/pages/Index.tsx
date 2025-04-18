@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
-import ChatMessage from '@/components/ChatMessage';
 import ChatPanel from '@/components/ChatPanel';
 import DonateButton from '@/components/DonateButton';
 import DumDummiesLogo from '@/components/DumDummiesLogo';
@@ -12,14 +11,17 @@ import ViewerCount from '@/components/ViewerCount';
 import ChallengesDashboard from '@/components/ChallengesDashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
-  getActiveChallenge, 
+  getActiveChallenge,
+  getRequestedChallenges,
   sendChatMessage, 
   subscribeToChatMessages,
   subscribeToDonations,
   subscribeToChallenge,
   createDonation,
   updateViewerCount,
-  createChallenge
+  createChallenge,
+  approveChallenge,
+  rejectChallenge
 } from '@/services/supabaseService';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,21 +63,20 @@ const Index = () => {
   const [challengeName, setChallengeName] = useState('DRINK PISS');
   const [viewers, setViewers] = useState(30);
   const [targetReached, setTargetReached] = useState(false);
-  const [secondChallenge, setSecondChallenge] = useState('SHITBACK');
-  const [secondChallengeProgress, setSecondChallengeProgress] = useState(65);
   
-  const [challengesList, setChallengesList] = useState([
+  // Track both active and requested challenges
+  const [activeChallenges, setActiveChallenges] = useState([
     {
+      id: "default",
       name: challengeName,
       targetAmount: targetAmount,
       currentAmount: currentAmount,
-    },
-    {
-      name: secondChallenge,
-      targetAmount: 100,
-      currentAmount: secondChallengeProgress,
+      status: 'active'
     },
   ]);
+  
+  const [requestedChallenges, setRequestedChallenges] = useState<any[]>([]);
+  const [isCreator, setIsCreator] = useState(true); // For demo purposes
   
   const [userAvatarColor] = useState(() => {
     const storedColor = localStorage.getItem('userAvatarColor');
@@ -116,29 +117,42 @@ const Index = () => {
           setTargetAmount(Number(challenge.target_amount));
           setCurrentAmount(Number(challenge.current_amount));
           setTargetReached(challenge.is_completed || Number(challenge.current_amount) >= Number(challenge.target_amount));
+          
+          setActiveChallenges([{
+            id: challenge.id,
+            name: challenge.name,
+            targetAmount: Number(challenge.target_amount),
+            currentAmount: Number(challenge.current_amount),
+            status: 'active'
+          }]);
         }
       } catch (error) {
         console.error('Error fetching active challenge:', error);
       }
     };
+    
+    const fetchRequestedChallenges = async () => {
+      try {
+        const challenges = await getRequestedChallenges(DEMO_CHANNEL_ID);
+        if (challenges) {
+          const formattedChallenges = challenges.map(c => ({
+            id: c.id,
+            name: c.name,
+            targetAmount: 0, // Not set yet
+            currentAmount: 0,
+            status: 'requested',
+            userId: c.user_id
+          }));
+          setRequestedChallenges(formattedChallenges);
+        }
+      } catch (error) {
+        console.error('Error fetching requested challenges:', error);
+      }
+    };
 
     fetchActiveChallenge();
+    fetchRequestedChallenges();
   }, []);
-
-  useEffect(() => {
-    setChallengesList([
-      {
-        name: challengeName,
-        targetAmount: targetAmount,
-        currentAmount: currentAmount,
-      },
-      {
-        name: secondChallenge,
-        targetAmount: 100,
-        currentAmount: secondChallengeProgress,
-      },
-    ]);
-  }, [challengeName, targetAmount, currentAmount, secondChallenge, secondChallengeProgress]);
 
   useEffect(() => {
     updateViewerCount(DEMO_CHANNEL_ID, 1).catch(console.error);
@@ -208,33 +222,85 @@ const Index = () => {
         }
         return newAmount;
       });
+      
+      // Also update the active challenges array
+      setActiveChallenges(prev => {
+        return prev.map(challenge => {
+          if (challenge.name === challengeName) {
+            const newAmount = challenge.currentAmount + Number(newDonation.amount);
+            return {
+              ...challenge,
+              currentAmount: newAmount
+            };
+          }
+          return challenge;
+        });
+      });
     });
 
     const unsubscribeChallenge = subscribeToChallenge(DEMO_CHANNEL_ID, (updatedChallenge) => {
-      setChallengeName(updatedChallenge.name);
-      setTargetAmount(Number(updatedChallenge.target_amount));
-      setCurrentAmount(Number(updatedChallenge.current_amount));
-      setTargetReached(updatedChallenge.is_completed || Number(updatedChallenge.current_amount) >= Number(updatedChallenge.target_amount));
+      // Handle status changes - if a challenge is approved, we need to refresh both lists
+      if (updatedChallenge.status === 'active') {
+        // Remove from requested challenges if it was there
+        setRequestedChallenges(prev => prev.filter(c => c.id !== updatedChallenge.id));
+        
+        // Add to active challenges if it's not there
+        const existsInActive = activeChallenges.some(c => c.id === updatedChallenge.id);
+        if (!existsInActive) {
+          setActiveChallenges(prev => [
+            ...prev, 
+            {
+              id: updatedChallenge.id,
+              name: updatedChallenge.name,
+              targetAmount: Number(updatedChallenge.target_amount),
+              currentAmount: Number(updatedChallenge.current_amount),
+              status: 'active'
+            }
+          ]);
+        } else {
+          // Update existing active challenge
+          setActiveChallenges(prev => prev.map(c => {
+            if (c.id === updatedChallenge.id) {
+              return {
+                ...c,
+                name: updatedChallenge.name,
+                targetAmount: Number(updatedChallenge.target_amount),
+                currentAmount: Number(updatedChallenge.current_amount),
+                status: 'active'
+              };
+            }
+            return c;
+          }));
+        }
+      }
+      
+      // Update main active challenge if this is the current one
+      if (updatedChallenge.id === activeChallenges[0]?.id) {
+        setChallengeName(updatedChallenge.name);
+        setTargetAmount(Number(updatedChallenge.target_amount));
+        setCurrentAmount(Number(updatedChallenge.current_amount));
+        setTargetReached(updatedChallenge.is_completed || Number(updatedChallenge.current_amount) >= Number(updatedChallenge.target_amount));
+        
+        if (updatedChallenge.is_completed && !targetReached) {
+          toast({
+            title: "Challenge completed!",
+            description: `${challengeName} target reached!`,
+            variant: "default",
+          });
 
-      if (updatedChallenge.is_completed && !targetReached) {
-        toast({
-          title: "Challenge completed!",
-          description: `${challengeName} target reached!`,
-          variant: "default",
-        });
+          const systemMessage: Message = {
+            id: Date.now(),
+            username: 'SYSTEM',
+            message: `TARGET REACHED! Time to ${updatedChallenge.name.toLowerCase()}!`,
+            emoji: '🎉',
+            type: 'chat',
+            avatarColor: 'bg-neon-red',
+            usernameColor: 'text-neon-red',
+            messageColor: 'text-neon-yellow'
+          };
 
-        const systemMessage: Message = {
-          id: Date.now(),
-          username: 'SYSTEM',
-          message: `TARGET REACHED! Time to ${updatedChallenge.name.toLowerCase()}!`,
-          emoji: '🎉',
-          type: 'chat',
-          avatarColor: 'bg-neon-red',
-          usernameColor: 'text-neon-red',
-          messageColor: 'text-neon-yellow'
-        };
-
-        setMessages(prev => [...prev.slice(-49), systemMessage]);
+          setMessages(prev => [...prev.slice(-49), systemMessage]);
+        }
       }
     });
 
@@ -253,7 +319,7 @@ const Index = () => {
       
       updateViewerCount(DEMO_CHANNEL_ID, -1).catch(console.error);
     };
-  }, [challengeName, targetReached, toast, targetAmount]);
+  }, [challengeName, targetReached, toast, targetAmount, activeChallenges]);
 
   const handleSendMessage = async (message: string) => {
     if (!user) return;
@@ -292,7 +358,7 @@ const Index = () => {
     if (!user) return;
 
     try {
-      const challenge = challengesList.find(c => c.name === challengeName);
+      const challenge = activeChallenges.find(c => c.name === challengeName);
       if (!challenge) {
         toast({
           title: "Error",
@@ -322,25 +388,32 @@ const Index = () => {
     }
   };
 
-  const handleCreateChallenge = async (challengeName: string, targetAmount: number) => {
+  const handleCreateChallenge = async (challengeName: string) => {
     if (!user || !challengeName.trim()) return;
     
     try {
       await createChallenge({
         channel_id: DEMO_CHANNEL_ID,
         name: challengeName.toUpperCase(),
-        target_amount: targetAmount
+        user_id: user.id
       });
       
-      setChallengeName(challengeName.toUpperCase());
-      setTargetAmount(targetAmount);
-      setCurrentAmount(0);
-      setTargetReached(false);
+      // Add to requested challenges list (optimistic update)
+      const newChallenge = {
+        id: `temp-${Date.now()}`,
+        name: challengeName.toUpperCase(),
+        targetAmount: 0,
+        currentAmount: 0,
+        status: 'requested',
+        userId: user.id
+      };
+      
+      setRequestedChallenges(prev => [...prev, newChallenge]);
       
       const systemMessage: Message = {
         id: Date.now(),
         username: 'SYSTEM',
-        message: `NEW CHALLENGE: ${challengeName.toUpperCase()} - $${targetAmount} GOAL`,
+        message: `NEW CHALLENGE REQUESTED: ${challengeName.toUpperCase()}`,
         emoji: '🔥',
         type: 'chat',
         avatarColor: 'bg-neon-red',
@@ -350,8 +423,8 @@ const Index = () => {
       setMessages(prev => [...prev.slice(-49), systemMessage]);
       
       toast({
-        title: "Challenge created!",
-        description: `New challenge: ${challengeName.toUpperCase()} with $${targetAmount} target`,
+        title: "Challenge requested!",
+        description: `Your challenge request has been submitted: ${challengeName.toUpperCase()}`,
       });
     } catch (error) {
       console.error('Error creating challenge:', error);
@@ -362,10 +435,76 @@ const Index = () => {
       });
     }
   };
+  
+  const handleApproveChallenge = async (challengeId: string, targetAmount: number) => {
+    try {
+      await approveChallenge(challengeId, targetAmount);
+      
+      // Backend will handle the update through subscription
+      toast({
+        title: "Challenge approved",
+        description: "Challenge has been approved and is now active",
+      });
+    } catch (error) {
+      console.error('Error approving challenge:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve challenge",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleRejectChallenge = async (challengeId: string) => {
+    try {
+      await rejectChallenge(challengeId);
+      
+      // Remove from requested challenges
+      setRequestedChallenges(prev => prev.filter(c => c.id !== challengeId));
+      
+      toast({
+        title: "Challenge rejected",
+        description: "Challenge request has been rejected",
+      });
+    } catch (error) {
+      console.error('Error rejecting challenge:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reject challenge",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDonateAdapter = (amount: number) => {
-    handleDonate(amount, challengeName);
+    if (activeChallenges.length > 0) {
+      handleDonate(amount, activeChallenges[0].name);
+    }
   };
+
+  // For demo purposes, simulate some requested challenges
+  useEffect(() => {
+    if (requestedChallenges.length === 0) {
+      setRequestedChallenges([
+        {
+          id: 'demo-req-1',
+          name: 'EAT A GHOST PEPPER',
+          targetAmount: 0,
+          currentAmount: 0,
+          status: 'requested',
+          userId: 'demo-user-1'
+        },
+        {
+          id: 'demo-req-2',
+          name: 'SHAVE HEAD ON STREAM',
+          targetAmount: 0,
+          currentAmount: 0,
+          status: 'requested',
+          userId: 'demo-user-2'
+        }
+      ]);
+    }
+  }, [requestedChallenges]);
 
   return (
     <div className="min-h-screen bg-stream-dark text-white flex flex-col">
@@ -374,7 +513,7 @@ const Index = () => {
       <header className="border-b border-stream-border p-4 flex items-center justify-between bg-stream-panel/50 backdrop-blur-sm">
         <DumDummiesLogo />
         <div className="flex items-center gap-4">
-          <button className="bg-neon-red text-white px-3 py-1 text-sm font-bold rounded">
+          <button className="bg-neon-red text-white px-3 py-1 text-sm font-bold rounded animate-pulse">
             LIVE
           </button>
           
@@ -412,23 +551,20 @@ const Index = () => {
           </div>
           
           <ChallengesDashboard 
-            challenges={challengesList}
+            activeChallenges={activeChallenges}
+            requestedChallenges={requestedChallenges}
             onDonate={handleDonate}
-            onCreateChallenge={handleCreateChallenge}
+            onApproveChallenge={handleApproveChallenge}
+            onRejectChallenge={handleRejectChallenge}
+            isCreator={isCreator}
           />
           
           <div className="flex items-center justify-between bg-stream-panel p-4 border border-stream-border rounded-lg">
             <ViewerCount count={viewers} />
             
             <div className="flex items-center gap-2">
-              <span className="text-neon-orange">NOW: {secondChallenge}...</span>
-              <span className="text-neon-green">{secondChallengeProgress}%</span>
-              <div className="w-32">
-                <ProgressBar 
-                  progress={secondChallengeProgress} 
-                  color="bg-neon-green" 
-                />
-              </div>
+              <span className="text-neon-orange">CURRENT CHALLENGE:</span>
+              <span className="text-neon-green font-bold">{challengeName}</span>
             </div>
             
             <div className="flex items-center gap-2">

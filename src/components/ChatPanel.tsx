@@ -3,12 +3,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import ChatMessage from './ChatMessage';
 import { Message } from '@/pages/Index';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send } from 'lucide-react';
+import { Send, AlertCircle, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type ChatPanelProps = {
   messages: Message[];
   onSendMessage: (message: string) => void;
-  onCreateChallenge: (challengeName: string, targetAmount: number) => void;
+  onCreateChallenge: (challengeName: string) => void;
 };
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreateChallenge }) => {
@@ -16,7 +19,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
   const [inputValue, setInputValue] = useState('');
   const [showChallengeModal, setShowChallengeModal] = useState(false);
   const [customChallenge, setCustomChallenge] = useState('');
-  const [targetAmount, setTargetAmount] = useState(20);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Predefined extreme challenges
@@ -50,7 +52,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
   };
 
   const handleChallengeSubmit = (challengeName: string) => {
-    onCreateChallenge(challengeName, targetAmount);
+    onCreateChallenge(challengeName);
     setShowChallengeModal(false);
     setCustomChallenge('');
   };
@@ -61,9 +63,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
         <h2 className="text-neon-orange font-bold animate-pulse-bright">CHATS & PLEDGES</h2>
         <button 
           onClick={() => setShowChallengeModal(true)}
-          className="text-xs bg-neon-red hover:bg-red-600 text-white px-2 py-1 rounded-sm"
+          className="text-xs bg-neon-red hover:bg-red-600 text-white px-2 py-1 rounded-sm transition-all duration-300 hover:scale-105 shadow-glow-red"
         >
-          CREATE CHALLENGE
+          REQUEST CHALLENGE
         </button>
       </div>
 
@@ -105,69 +107,86 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
         </button>
       </form>
 
-      {/* Challenge Creation Modal */}
-      {showChallengeModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-stream-panel border border-stream-border w-full max-w-md p-4 rounded animate-fade-in">
-            <h2 className="text-neon-red text-xl font-bold mb-4">CREATE EXTREME CHALLENGE</h2>
-            
+      {/* Challenge Request Modal - Modern UI */}
+      <Dialog open={showChallengeModal} onOpenChange={setShowChallengeModal}>
+        <DialogContent className="bg-stream-darker border border-stream-border max-w-md p-0 rounded-lg shadow-glow-red overflow-hidden">
+          <DialogHeader className="bg-gradient-to-r from-red-900 to-stream-panel p-4 border-b border-stream-border">
+            <DialogTitle className="text-neon-red text-xl font-bold flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              REQUEST EXTREME CHALLENGE
+            </DialogTitle>
+            <DialogDescription className="text-gray-300">
+              Request a challenge for the streamer to perform
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="p-4">
             <div className="mb-4">
-              <label className="block text-gray-300 mb-2">Select Challenge:</label>
-              <div className="grid grid-cols-1 gap-2 mb-4 max-h-48 overflow-y-auto">
-                {extremeChallenges.map((challenge, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleChallengeSubmit(challenge)}
-                    className="text-left bg-stream-darker p-2 hover:bg-neon-red hover:text-white transition-colors"
-                  >
-                    {challenge}
-                  </button>
-                ))}
+              <label className="block text-neon-cyan mb-2 font-medium">CHOOSE FROM EXTREME CHALLENGES:</label>
+              <div className="grid grid-cols-1 gap-2 mb-4 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                <AnimatePresence>
+                  {extremeChallenges.map((challenge, index) => (
+                    <motion.button
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                      key={index}
+                      onClick={() => handleChallengeSubmit(challenge)}
+                      className="text-left bg-stream-panel p-3 border border-stream-border hover:border-neon-red hover:text-neon-red hover:bg-red-900/20 transition-all duration-200 group rounded"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span>{challenge}</span>
+                        <span className="text-neon-red opacity-0 group-hover:opacity-100 transition-opacity">
+                          REQUEST &rarr;
+                        </span>
+                      </div>
+                    </motion.button>
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
             
             <div className="mb-4">
-              <label className="block text-gray-300 mb-2">Custom Challenge:</label>
-              <input
-                type="text"
-                value={customChallenge}
-                onChange={(e) => setCustomChallenge(e.target.value)}
-                placeholder="Enter your own extreme challenge"
-                className="w-full p-2 bg-stream-darker text-white border border-stream-border"
-              />
+              <label className="block text-neon-cyan mb-2 font-medium">OR CREATE YOUR OWN CHALLENGE:</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={customChallenge}
+                  onChange={(e) => setCustomChallenge(e.target.value)}
+                  placeholder="Enter your own extreme challenge"
+                  className="w-full p-3 bg-stream-panel text-white border border-stream-border rounded focus:border-neon-red focus:outline-none focus:ring-1 focus:ring-neon-red"
+                />
+                {customChallenge && (
+                  <button 
+                    onClick={() => setCustomChallenge('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
             </div>
             
-            <div className="mb-4">
-              <label className="block text-gray-300 mb-2">Target Amount: ${targetAmount}</label>
-              <input
-                type="range"
-                min="5"
-                max="100"
-                step="5"
-                value={targetAmount}
-                onChange={(e) => setTargetAmount(Number(e.target.value))}
-                className="w-full"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <button
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button
                 onClick={() => setShowChallengeModal(false)}
-                className="px-4 py-2 border border-stream-border text-gray-300 hover:bg-stream-border"
+                variant="outline"
+                className="border-stream-border text-gray-300 hover:bg-stream-panel"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => handleChallengeSubmit(customChallenge)}
                 disabled={!customChallenge.trim()}
-                className="px-4 py-2 bg-neon-red text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-red-700 to-neon-red text-white hover:bg-red-600 hover:from-neon-red hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-glow-red"
               >
-                Create Custom Challenge
-              </button>
+                Request Challenge
+              </Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
