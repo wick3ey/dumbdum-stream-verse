@@ -2,7 +2,7 @@
 import React from 'react';
 import Avatar from './Avatar';
 
-type MessageType = 'chat' | 'donation';
+type MessageType = 'chat' | 'donation' | 'system';
 
 type ChatMessageProps = {
   username: string;
@@ -25,6 +25,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   type,
   amount
 }) => {
+  if (type === 'system') {
+    return (
+      <div className="py-2 px-3 my-2 bg-stream-panel border border-neon-red rounded text-center animate-pulse-bright">
+        <span className="text-neon-red font-bold">{username}: </span>
+        <span className="text-neon-yellow">{message}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-start gap-2 mb-2 animate-fade-in">
       <Avatar color={avatarColor} emoji={emoji} className="flex-shrink-0" />

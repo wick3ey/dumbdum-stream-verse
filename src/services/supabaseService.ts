@@ -88,87 +88,69 @@ export const getChatMessages = async (channelId: string, limit = 50) => {
 };
 
 export const sendChatMessage = async (message: { channel_id: string; user_id: string; message: string; emoji?: string }) => {
-  const { data, error } = await supabase
-    .from('chat_messages')
-    .insert([message])
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert([message]);
 
-  if (error) throw error;
-  return data as ChatMessage;
+    if (error) throw error;
+    return data?.[0] as ChatMessage;
+  } catch (error) {
+    console.error("Error sending chat message:", error);
+    throw error;
+  }
 };
 
-// Subscribe to new chat messages
+// Real-time chat subscription
 export const subscribeToChatMessages = (channelId: string, callback: (message: any) => void) => {
-  // In a real implementation, this would use Supabase's real-time subscriptions
-  // For now, we'll use a simulated approach with random messages and a timer
-  
-  // Using localStorage to store user-specific data
-  const savedUsernames = [
-    'ToxicGamer', 'EdgyLord', 'XtremeFan', 'NightRider', 'ChaosCreator',
-    'DangerZone', 'RiskyBiz', 'DeathWish', 'AdrenalineJunkie', 'WildOne',
-    'DarkSoul', 'RageMachine', 'InsanityLevel', 'MadMax', 'PsychoKiller'
-  ];
-  
-  const randomMessages = [
-    "omg can't wait to see this",
-    "do it you coward",
-    "this is gonna be epic",
-    "10 bucks says they chicken out",
-    "I've seen worse, this is nothing",
-    "my sister did this once. she's in therapy now",
-    "live stream legends right here",
-    "this channel is sick, literally",
-    "somebody call an ambulance... but not for me",
-    "they're actually gonna do it...",
-    "this is why the internet was invented",
-    "my mom walked in and now I'm grounded",
-    "saving this to show my therapist",
-    "how is this even legal",
-    "i'm both disgusted and intrigued",
-    "can't look away",
-    "did anyone record that last part?",
-    "we need more extreme challenges",
-    "humanity was a mistake",
-    "this is peak entertainment"
-  ];
-
-  // Create interval for simulated messages
-  const intervalId = setInterval(() => {
-    // Random chance (30%) to send a new message every 5 seconds
-    if (Math.random() > 0.7) {
-      const username = savedUsernames[Math.floor(Math.random() * savedUsernames.length)];
-      const message = randomMessages[Math.floor(Math.random() * randomMessages.length)];
-      
-      callback({
-        id: `message-${Date.now()}`,
-        channel_id: channelId,
-        user_id: `user-${Math.floor(Math.random() * 100)}`,
-        username: username,
-        message: message,
-        emoji: '😀',
-        is_system_message: false,
-        created_at: new Date().toISOString()
-      });
-    }
-  }, 5000);
+  const channel = supabase
+    .channel('public:chat_messages')
+    .on('postgres_changes', 
+      { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'chat_messages',
+        filter: `channel_id=eq.${channelId}`
+      }, 
+      (payload) => {
+        // Format the message and call the callback
+        if (payload.new) {
+          const username = payload.new.username || 'Anonymous';
+          callback({
+            id: payload.new.id,
+            channel_id: payload.new.channel_id,
+            user_id: payload.new.user_id,
+            username: username,
+            message: payload.new.message,
+            emoji: payload.new.emoji || '😀',
+            is_system_message: payload.new.is_system_message || false,
+            created_at: payload.new.created_at
+          });
+        }
+      }
+    )
+    .subscribe();
 
   // Return unsubscribe function
   return () => {
-    clearInterval(intervalId);
+    supabase.removeChannel(channel);
   };
 };
 
 // Donation services
 export const createDonation = async (donation: { channel_id: string; user_id: string; amount: number; message?: string }) => {
-  const { data, error } = await supabase
-    .from('donations')
-    .insert([donation])
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('donations')
+      .insert([donation]);
 
-  if (error) throw error;
-  return data as Donation;
+    if (error) throw error;
+    
+    return data?.[0] as Donation;
+  } catch (error) {
+    console.error("Error creating donation:", error);
+    throw error;
+  }
 };
 
 export const getChannelDonations = async (channelId: string) => {
@@ -185,104 +167,112 @@ export const getChannelDonations = async (channelId: string) => {
   return data;
 };
 
-// Subscribe to new donations
+// Real-time donation subscription
 export const subscribeToDonations = (channelId: string, callback: (donation: any) => void) => {
-  // In a real implementation, this would use Supabase's real-time subscriptions
-  // For now, we'll use a simulated approach with random donations
-  
-  const donorUsernames = [
-    'BigSpender', 'MoneyBags', 'RichKid', 'GoldDigger', 'Philanthropist',
-    'SugarDaddy', 'LotteryWinner', 'TrustFundBaby', 'CryptoMillionaire', 'GenerousTipper'
-  ];
-  
-  // Create interval for simulated donations
-  const intervalId = setInterval(() => {
-    // Random chance (20%) to send a new donation every 15 seconds
-    if (Math.random() > 0.8) {
-      const username = donorUsernames[Math.floor(Math.random() * donorUsernames.length)];
-      const amount = [5, 10, 15, 20, 25, 50, 100][Math.floor(Math.random() * 7)];
-      
-      callback({
-        id: `donation-${Date.now()}`,
-        channel_id: channelId,
-        user_id: `user-${Math.floor(Math.random() * 10)}`,
-        username: username,
-        amount: amount,
-        message: `Keep it up!`,
-        created_at: new Date().toISOString()
-      });
-    }
-  }, 15000);
+  const channel = supabase
+    .channel('public:donations')
+    .on('postgres_changes', 
+      { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'donations',
+        filter: `channel_id=eq.${channelId}`
+      }, 
+      (payload) => {
+        // Format the donation and call the callback
+        if (payload.new) {
+          callback({
+            id: payload.new.id,
+            channel_id: payload.new.channel_id,
+            user_id: payload.new.user_id,
+            amount: payload.new.amount,
+            message: payload.new.message || '',
+            created_at: payload.new.created_at
+          });
+        }
+      }
+    )
+    .subscribe();
 
   // Return unsubscribe function
   return () => {
-    clearInterval(intervalId);
+    supabase.removeChannel(channel);
   };
 };
 
 // Challenge services
 export const getActiveChallenge = async (channelId: string) => {
-  const { data, error } = await supabase
-    .from('challenges')
-    .select('*')
-    .eq('channel_id', channelId)
-    .eq('is_completed', false)
-    .order('created_at', { ascending: false })
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('challenges')
+      .select('*')
+      .eq('channel_id', channelId)
+      .eq('is_completed', false)
+      .order('created_at', { ascending: false })
+      .maybeSingle();
 
-  if (error) throw error;
-  
-  // Return default challenge if none found
-  if (!data) {
-    return {
-      id: `challenge-default`,
-      channel_id: channelId,
-      name: 'DRINK PISS',
-      target_amount: 20,
-      current_amount: 0,
-      is_completed: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    } as Challenge;
+    if (error) throw error;
+    
+    // Return default challenge if none found
+    if (!data) {
+      return {
+        id: `challenge-default`,
+        channel_id: channelId,
+        name: 'DRINK PISS',
+        target_amount: 20,
+        current_amount: 0,
+        is_completed: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as Challenge;
+    }
+    
+    return data as Challenge;
+  } catch (error) {
+    console.error("Error fetching active challenge:", error);
+    throw error;
   }
-  
-  return data as Challenge;
 };
 
 export const createChallenge = async (challenge: { channel_id: string; name: string; target_amount: number }) => {
-  const { data, error } = await supabase
-    .from('challenges')
-    .insert([{
-      ...challenge,
-      current_amount: 0,
-      is_completed: false
-    }])
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('challenges')
+      .insert([{
+        ...challenge,
+        current_amount: 0,
+        is_completed: false
+      }]);
 
-  if (error) throw error;
-  return data as Challenge;
+    if (error) throw error;
+    return data?.[0] as Challenge;
+  } catch (error) {
+    console.error("Error creating challenge:", error);
+    throw error;
+  }
 };
 
-// Subscribe to challenge updates
+// Real-time challenge updates subscription
 export const subscribeToChallenge = (channelId: string, callback: (challenge: any) => void) => {
-  // In a real implementation, this would use Supabase's real-time subscriptions
-  // We'll keep the mock implementation for the demo
-  
-  // Create interval for simulated challenge updates
-  const intervalId = setInterval(() => {
-    // Only update challenge state every 30 seconds with 30% chance
-    if (Math.random() > 0.7) {
-      getActiveChallenge(channelId)
-        .then(challenge => {
-          callback(challenge);
-        })
-        .catch(console.error);
-    }
-  }, 30000);
+  const channel = supabase
+    .channel('public:challenges')
+    .on('postgres_changes', 
+      { 
+        event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+        schema: 'public', 
+        table: 'challenges',
+        filter: `channel_id=eq.${channelId}`
+      }, 
+      (payload) => {
+        if (payload.new) {
+          callback(payload.new);
+        }
+      }
+    )
+    .subscribe();
 
   // Return unsubscribe function
   return () => {
-    clearInterval(intervalId);
+    supabase.removeChannel(channel);
   };
 };
