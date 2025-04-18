@@ -236,6 +236,8 @@ export const getActiveChallenge = async (channelId: string) => {
   }
 };
 
+export type ChallengeStatus = 'requested' | 'active' | 'completed';
+
 export const getRequestedChallenges = async (channelId: string) => {
   try {
     const { data, error } = await supabase

@@ -141,15 +141,20 @@ const Index = () => {
     const fetchRequestedChallenges = async () => {
       try {
         const challenges = await getRequestedChallenges(DEMO_CHANNEL_ID);
-        if (challenges) {
-          const formattedChallenges: Challenge[] = challenges.map(c => ({
-            id: c.id,
-            name: c.name,
-            targetAmount: 0,
-            currentAmount: 0,
-            status: 'requested',
-            userId: c.userId || c.user_id || ''
-          }));
+        if (challenges && challenges.length > 0) {
+          const formattedChallenges: Challenge[] = challenges.map(c => {
+            // Extract userId safely from any possible field name
+            const userId = c.user_id || '';
+            
+            return {
+              id: c.id,
+              name: c.name,
+              targetAmount: 0,
+              currentAmount: 0,
+              status: 'requested' as const,
+              userId: userId
+            };
+          });
           setRequestedChallenges(formattedChallenges);
         }
       } catch (error) {
