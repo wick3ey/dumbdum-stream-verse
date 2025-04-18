@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import ChatMessage from './ChatMessage';
 import { Message } from '@/pages/Index';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, AlertCircle, X } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 
@@ -60,12 +59,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
     <div className="flex flex-col h-full">
       <div className="bg-stream-panel p-2 border-b border-stream-border flex justify-between items-center">
         <h2 className="text-neon-orange font-bold animate-pulse-bright">CHATS & PLEDGES</h2>
-        <button 
-          onClick={() => setShowChallengeModal(true)}
-          className="text-xs bg-neon-red hover:bg-red-600 text-white px-2 py-1 rounded-sm transition-all duration-300 hover:scale-105 shadow-glow-red"
-        >
-          REQUEST CHALLENGE
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 bg-stream-darker">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
@@ -11,7 +10,9 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  ThumbsUp
+  ThumbsUp,
+  Flame,
+  AlertCircle
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -62,6 +63,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   const [targetAmount, setTargetAmount] = useState<string>('20');
   const [selectedRequestedChallenge, setSelectedRequestedChallenge] = useState<Challenge | null>(null);
   const [showRequestedSection, setShowRequestedSection] = useState(true);
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
 
   const handleChallengeSelect = (challenge: Challenge) => {
     setSelectedChallenge(challenge);
@@ -151,6 +153,21 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                 <span className="ml-1 bg-neon-red text-white text-xs px-1.5 rounded-full">{requestedChallenges.length}</span>}
             </TabsTrigger>
           </TabsList>
+        </div>
+
+        <div className="mb-6 flex justify-center">
+          <button 
+            onClick={() => setShowChallengeModal(true)}
+            className="group relative overflow-hidden px-6 py-3 rounded-lg bg-gradient-to-r from-neon-red via-neon-orange to-neon-yellow hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+          >
+            <span className="absolute inset-0 bg-black/20"></span>
+            <span className="relative flex items-center gap-2 text-white font-bold tracking-wider">
+              <Flame className="h-5 w-5 animate-pulse" />
+              REQUEST EXTREME CHALLENGE
+              <Flame className="h-5 w-5 animate-pulse" />
+            </span>
+            <span className="absolute inset-0 -z-10 bg-gradient-to-r from-neon-red via-neon-orange to-neon-yellow opacity-50 blur-xl transition-all duration-500 group-hover:opacity-100"></span>
+          </button>
         </div>
         
         <TabsContent value="active" className="pt-0 mt-0">
@@ -434,6 +451,59 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                 className="bg-green-700 hover:bg-green-600"
               >
                 <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Challenge
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Challenge Modal */}
+      <Dialog open={showChallengeModal} onOpenChange={setShowChallengeModal}>
+        <DialogContent className="bg-stream-darker border-stream-border">
+          <DialogHeader>
+            <DialogTitle className="text-neon-red">Request Extreme Challenge</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Please fill out the form below to request an extreme challenge.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm text-gray-400">Challenge Name:</label>
+              <Input
+                type="text"
+                placeholder="Enter challenge name"
+                className="bg-stream-panel border-stream-border text-white"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm text-gray-400">Target Amount ($):</label>
+              <Input
+                type="number"
+                placeholder="Enter target amount"
+                className="bg-stream-panel border-stream-border text-white"
+                min="1"
+                step="5"
+              />
+            </div>
+            
+            <div className="pt-4 flex justify-end space-x-2">
+              <Button
+                onClick={() => setShowChallengeModal(false)}
+                variant="outline"
+                className="border-stream-border text-gray-300"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowChallengeModal(false);
+                  // Handle request logic here
+                }}
+                className="bg-green-700 hover:bg-green-600"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1" /> Request Challenge
               </Button>
             </div>
           </div>
