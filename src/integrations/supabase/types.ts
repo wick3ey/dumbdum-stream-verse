@@ -9,13 +9,189 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      challenges: {
+        Row: {
+          channel_id: string
+          created_at: string
+          current_amount: number | null
+          id: string
+          is_completed: boolean | null
+          name: string
+          target_amount: number
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          current_amount?: number | null
+          id?: string
+          is_completed?: boolean | null
+          name: string
+          target_amount: number
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          current_amount?: number | null
+          id?: string
+          is_completed?: boolean | null
+          name?: string
+          target_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenges_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_live: boolean | null
+          owner_id: string
+          title: string
+          updated_at: string
+          viewer_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_live?: boolean | null
+          owner_id: string
+          title: string
+          updated_at?: string
+          viewer_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_live?: boolean | null
+          owner_id?: string
+          title?: string
+          updated_at?: string
+          viewer_count?: number | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          channel_id: string
+          created_at: string
+          emoji: string | null
+          id: string
+          is_system_message: boolean | null
+          message: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          is_system_message?: boolean | null
+          message: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          is_system_message?: boolean | null
+          message?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      donations: {
+        Row: {
+          amount: number
+          channel_id: string
+          created_at: string
+          id: string
+          message: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          channel_id: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          channel_id?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donations_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          id: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_viewer_count: {
+        Args: { channel_uuid: string; count_change: number }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

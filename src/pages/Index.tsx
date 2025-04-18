@@ -9,10 +9,21 @@ import ProgressBar from '@/components/ProgressBar';
 import TargetDisplay from '@/components/TargetDisplay';
 import VideoFeed from '@/components/VideoFeed';
 import ViewerCount from '@/components/ViewerCount';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  getActiveChallenge, 
+  sendChatMessage, 
+  subscribeToChatMessages,
+  subscribeToDonations,
+  subscribeToChallenge,
+  createDonation,
+  updateViewerCount
+} from '@/services/supabaseService';
+import { useToast } from '@/hooks/use-toast';
 
 // Types
 type Message = {
-  id: number;
+  id: number | string;
   username: string;
   message: string;
   emoji: string;
@@ -22,13 +33,6 @@ type Message = {
   usernameColor: string;
   messageColor: string;
 };
-
-// Random usernames based on the images
-const USERNAMES = [
-  'FearFerret9', 'Captain-Puke88', 'The-Ventricle', 'ShinyGuppy',
-  'Razor513', 'BlueThunder', 'CyberNomad', 'BitLord',
-  'GlitchMonkey', 'ToxicWaste', 'DigitalDemon', 'VoidWalker'
-];
 
 // Random emojis
 const EMOJIS = ['😈', '👹', '👽', '🤖', '👻', '💀', '🤡', '👺', '😠', '🤯', '🥴', '🤪'];
@@ -48,50 +52,115 @@ const USERNAME_COLORS = [
 // Colors for messages
 const MESSAGE_COLORS = ['text-white', 'text-neon-cyan', 'text-neon-blue'];
 
-// Random chat messages
-const RANDOM_MESSAGES = [
-  'bored.',
-  'STICK IT UP YR ASS you nasty',
-  'this is wild!',
-  'what is he doing lol',
-  'do the thing!',
-  'I PAID GOOD MONEY FOR THIS',
-  'looks painful',
-  'this stream is epic',
-  'more glitches plz',
-  'everyone donate!!!',
-  'LMAOOOOO',
-  'I can\'t believe he\'s doing this',
-  'worth every penny'
-];
-
-// Challenge data
-const CHALLENGE = {
-  name: 'DRINK PISS',
-  targetAmount: 20,
-  secondChallenge: 'SHITBACK',
-  secondChallengeProgress: 65
-};
+// This is a demo channel ID - in production you'd get this from the URL or a context
+const DEMO_CHANNEL_ID = "00000000-0000-0000-0000-000000000000";
 
 const Index = () => {
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentAmount, setCurrentAmount] = useState(0);
+  const [targetAmount, setTargetAmount] = useState(20);
+  const [challengeName, setChallengeName] = useState('DRINK PISS');
   const [viewers, setViewers] = useState(30);
   const [targetReached, setTargetReached] = useState(false);
+  const [secondChallenge, setSecondChallenge] = useState('SHITBACK');
+  const [secondChallengeProgress, setSecondChallengeProgress] = useState(65);
 
-  // Generate initial messages on mount
+  // Effect to fetch the active challenge on component mount
   useEffect(() => {
-    const initialMessages: Message[] = [
-      createChatMessage('I PAID GOOD MONEY FOR THIS'),
-      createChatMessage('this is getting wild'),
-      createChatMessage('worth every penny'),
-      createDonationMessage(5),
-      createChatMessage('LMAOOOOO'),
-      createDonationMessage(10),
-    ];
-    
-    setMessages(initialMessages);
-    
+    const fetchActiveChallenge = async () => {
+      try {
+        const challenge = await getActiveChallenge(DEMO_CHANNEL_ID);
+        if (challenge) {
+          setChallengeName(challenge.name);
+          setTargetAmount(Number(challenge.target_amount));
+          setCurrentAmount(Number(challenge.current_amount));
+          setTargetReached(challenge.is_completed || Number(challenge.current_amount) >= Number(challenge.target_amount));
+        }
+      } catch (error) {
+        console.error('Error fetching active challenge:', error);
+      }
+    };
+
+    fetchActiveChallenge();
+  }, []);
+
+  // Effect to subscribe to real-time updates
+  useEffect(() => {
+    // Simulate viewer joining
+    updateViewerCount(DEMO_CHANNEL_ID, 1).catch(console.error);
+
+    // Subscribe to chat messages
+    const unsubscribeChat = subscribeToChatMessages(DEMO_CHANNEL_ID, (newMessage) => {
+      const randomEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+      const randomAvatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+      const randomUsernameColor = USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
+      const randomMessageColor = MESSAGE_COLORS[Math.floor(Math.random() * MESSAGE_COLORS.length)];
+
+      const formattedMessage: Message = {
+        id: newMessage.id,
+        username: newMessage.username || 'User',
+        message: newMessage.message,
+        emoji: randomEmoji,
+        type: 'chat',
+        avatarColor: randomAvatarColor,
+        usernameColor: randomUsernameColor,
+        messageColor: randomMessageColor
+      };
+
+      setMessages(prev => [...prev.slice(-19), formattedMessage]);
+    });
+
+    // Subscribe to donations
+    const unsubscribeDonations = subscribeToDonations(DEMO_CHANNEL_ID, (newDonation) => {
+      const randomEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+      const randomAvatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+      const randomUsernameColor = USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
+
+      const formattedDonation: Message = {
+        id: newDonation.id,
+        username: newDonation.username || 'User',
+        message: 'contributed',
+        emoji: randomEmoji,
+        type: 'donation',
+        amount: Number(newDonation.amount),
+        avatarColor: randomAvatarColor,
+        usernameColor: randomUsernameColor,
+        messageColor: 'text-white'
+      };
+
+      setMessages(prev => [...prev.slice(-19), formattedDonation]);
+    });
+
+    // Subscribe to challenge updates
+    const unsubscribeChallenge = subscribeToChallenge(DEMO_CHANNEL_ID, (updatedChallenge) => {
+      setCurrentAmount(Number(updatedChallenge.current_amount));
+      setTargetReached(updatedChallenge.is_completed || Number(updatedChallenge.current_amount) >= Number(updatedChallenge.target_amount));
+
+      if (updatedChallenge.is_completed && !targetReached) {
+        toast({
+          title: "Challenge completed!",
+          description: `${challengeName} target reached!`,
+          variant: "default",
+        });
+
+        // Add system message
+        const systemMessage: Message = {
+          id: Date.now(),
+          username: 'SYSTEM',
+          message: 'TARGET REACHED! Time to drink piss!',
+          emoji: '🎉',
+          type: 'chat',
+          avatarColor: 'bg-neon-red',
+          usernameColor: 'text-neon-red',
+          messageColor: 'text-neon-yellow'
+        };
+
+        setMessages(prev => [...prev.slice(-19), systemMessage]);
+      }
+    });
+
     // Simulate random viewer count changes
     const viewerInterval = setInterval(() => {
       setViewers(prev => {
@@ -99,112 +168,62 @@ const Index = () => {
         return Math.max(10, prev + change);
       });
     }, 5000);
-    
-    // Simulate random chat messages
-    const chatInterval = setInterval(() => {
-      if (Math.random() > 0.7) {
-        addRandomMessage();
-      }
-    }, 3000);
-    
+
+    // Cleanup subscriptions on component unmount
     return () => {
+      unsubscribeChat();
+      unsubscribeDonations();
+      unsubscribeChallenge();
       clearInterval(viewerInterval);
-      clearInterval(chatInterval);
-    };
-  }, []);
-  
-  // Function to create a random chat message
-  function createChatMessage(overrideMessage?: string): Message {
-    const randomUsername = USERNAMES[Math.floor(Math.random() * USERNAMES.length)];
-    const randomEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-    const randomAvatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
-    const randomUsernameColor = USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
-    const randomMessageColor = MESSAGE_COLORS[Math.floor(Math.random() * MESSAGE_COLORS.length)];
-    const randomMessage = overrideMessage || RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
-    
-    return {
-      id: Date.now() + Math.random(),
-      username: randomUsername,
-      message: randomMessage,
-      emoji: randomEmoji,
-      type: 'chat',
-      avatarColor: randomAvatarColor,
-      usernameColor: randomUsernameColor,
-      messageColor: randomMessageColor
-    };
-  }
-  
-  // Function to create a donation message
-  function createDonationMessage(amount: number): Message {
-    const randomUsername = USERNAMES[Math.floor(Math.random() * USERNAMES.length)];
-    const randomEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-    const randomAvatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
-    const randomUsernameColor = USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
-    
-    return {
-      id: Date.now() + Math.random(),
-      username: randomUsername,
-      message: 'contributed',
-      emoji: randomEmoji,
-      type: 'donation',
-      amount: amount,
-      avatarColor: randomAvatarColor,
-      usernameColor: randomUsernameColor,
-      messageColor: 'text-white'
-    };
-  }
-  
-  // Add a random chat message
-  const addRandomMessage = () => {
-    const newMessage = createChatMessage();
-    setMessages(prev => [...prev.slice(-19), newMessage]);
-  };
-  
-  // Handle user sending a message
-  const handleSendMessage = (message: string) => {
-    // Generate random username and emoji for the user
-    const userMessage = {
-      id: Date.now(),
-      username: USERNAMES[Math.floor(Math.random() * USERNAMES.length)],
-      message,
-      emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
-      type: 'chat' as const,
-      avatarColor: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
-      usernameColor: USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)],
-      messageColor: 'text-white'
-    };
-    
-    setMessages(prev => [...prev.slice(-19), userMessage]);
-  };
-  
-  // Handle donations
-  const handleDonate = (amount: number) => {
-    // Create donation message
-    const donationMessage = createDonationMessage(amount);
-    setMessages(prev => [...prev.slice(-19), donationMessage]);
-    
-    // Update current amount
-    const newAmount = currentAmount + amount;
-    setCurrentAmount(newAmount);
-    
-    // Check if target is reached
-    if (newAmount >= CHALLENGE.targetAmount && !targetReached) {
-      setTargetReached(true);
       
-      // Add target reached message
-      setTimeout(() => {
-        const targetReachedMessage = {
-          id: Date.now(),
-          username: 'SYSTEM',
-          message: 'TARGET REACHED! Time to drink piss!',
-          emoji: '🎉',
-          type: 'chat' as const,
-          avatarColor: 'bg-neon-red',
-          usernameColor: 'text-neon-red',
-          messageColor: 'text-neon-yellow'
-        };
-        setMessages(prev => [...prev.slice(-19), targetReachedMessage]);
-      }, 1000);
+      // Simulate viewer leaving
+      updateViewerCount(DEMO_CHANNEL_ID, -1).catch(console.error);
+    };
+  }, [challengeName, targetReached, toast]);
+
+  // Function to send chat message
+  const handleSendMessage = async (message: string) => {
+    if (!user) return;
+
+    try {
+      await sendChatMessage({
+        channel_id: DEMO_CHANNEL_ID,
+        user_id: user.id,
+        message: message,
+        emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)]
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to handle donations
+  const handleDonate = async (amount: number) => {
+    if (!user) return;
+
+    try {
+      await createDonation({
+        channel_id: DEMO_CHANNEL_ID,
+        user_id: user.id,
+        amount: amount,
+      });
+
+      toast({
+        title: "Thank you!",
+        description: `You donated $${amount}!`,
+      });
+    } catch (error) {
+      console.error('Error creating donation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process donation",
+        variant: "destructive",
+      });
     }
   };
 
@@ -226,6 +245,15 @@ const Index = () => {
               className="bg-stream-panel border border-stream-border text-white placeholder-gray-500 px-3 py-1 rounded focus:outline-none focus:border-neon-cyan"
             />
           </div>
+          
+          {user && (
+            <button
+              onClick={() => signOut()}
+              className="bg-stream-panel border border-stream-border px-3 py-1 text-sm hover:bg-stream-border rounded"
+            >
+              Log Out
+            </button>
+          )}
         </div>
       </header>
       
@@ -236,7 +264,7 @@ const Index = () => {
           <div className="relative aspect-video">
             <VideoFeed 
               targetReached={targetReached} 
-              targetText={targetReached ? "TARGET REACHED!" : CHALLENGE.name} 
+              targetText={targetReached ? "TARGET REACHED!" : challengeName} 
             />
           </div>
           
@@ -245,11 +273,11 @@ const Index = () => {
             <ViewerCount count={viewers} />
             
             <div className="flex items-center gap-2">
-              <span className="text-neon-orange">NOW: {CHALLENGE.secondChallenge}...</span>
-              <span className="text-neon-green">{CHALLENGE.secondChallengeProgress}%</span>
+              <span className="text-neon-orange">NOW: {secondChallenge}...</span>
+              <span className="text-neon-green">{secondChallengeProgress}%</span>
               <div className="w-32">
                 <ProgressBar 
-                  progress={CHALLENGE.secondChallengeProgress} 
+                  progress={secondChallengeProgress} 
                   color="bg-neon-green" 
                 />
               </div>
@@ -268,8 +296,8 @@ const Index = () => {
           {/* Target display */}
           <div className="p-4 border-b border-stream-border">
             <TargetDisplay
-              challengeName={CHALLENGE.name}
-              targetAmount={CHALLENGE.targetAmount}
+              challengeName={challengeName}
+              targetAmount={targetAmount}
               currentAmount={currentAmount}
               isTargetReached={targetReached}
             />
