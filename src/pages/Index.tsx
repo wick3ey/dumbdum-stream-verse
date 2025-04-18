@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatMessage from '@/components/ChatMessage';
@@ -21,8 +20,8 @@ import {
 } from '@/services/supabaseService';
 import { useToast } from '@/hooks/use-toast';
 
-// Types
-type Message = {
+// Types - using consistent type for Message that matches ChatPanel's expected type
+export type Message = {
   id: number | string;
   username: string;
   message: string;

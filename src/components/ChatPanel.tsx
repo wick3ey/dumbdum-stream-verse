@@ -1,18 +1,6 @@
-
 import React from 'react';
 import ChatMessage from './ChatMessage';
-
-type Message = {
-  id: number;
-  username: string;
-  message: string;
-  emoji: string;
-  type: 'chat' | 'donation';
-  amount?: number;
-  avatarColor: string;
-  usernameColor: string;
-  messageColor: string;
-};
+import { Message } from '@/pages/Index';
 
 type ChatPanelProps = {
   messages: Message[];
