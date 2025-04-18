@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert, Info } from 'lucide-react';
 
 const Auth = () => {
   const { user, signIn, signUp } = useAuth();
@@ -39,6 +39,16 @@ const Auth = () => {
               <RegisterForm onRegister={signUp} />
             </TabsContent>
           </Tabs>
+          
+          <div className="mt-6 border-t border-stream-border pt-4">
+            <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+              <ShieldAlert size={16} />
+              <span>Account protection enabled</span>
+            </div>
+            <p className="text-xs text-gray-400">
+              For your security, multiple failed login attempts will temporarily lock your account.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -63,13 +73,19 @@ const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) 
       return;
     }
     
-    const success = await onLogin(username, password);
-    setIsLoading(false);
-    
-    if (success) {
-      navigate('/');
-    } else {
-      setError("Invalid username or password");
+    try {
+      const success = await onLogin(username, password);
+      
+      if (success) {
+        navigate('/');
+      } else {
+        // Error message is handled by the onLogin function
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError("An unexpected error occurred");
+      setIsLoading(false);
     }
   };
 
@@ -92,6 +108,7 @@ const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) 
           placeholder="YourUsername"
           className="bg-stream-dark border-stream-border"
           autoComplete="username"
+          disabled={isLoading}
         />
       </div>
       
@@ -106,6 +123,7 @@ const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) 
           placeholder="••••••••"
           className="bg-stream-dark border-stream-border"
           autoComplete="current-password"
+          disabled={isLoading}
         />
       </div>
       
@@ -117,7 +135,7 @@ const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) 
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-            Logging in...
+            Verifying...
           </>
         ) : 'Login'}
       </Button>
@@ -148,6 +166,12 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
       return;
     }
     
+    // Check for suspicious usernames
+    if (/^(admin|root|system)$/i.test(username)) {
+      setError("This username is reserved. Please choose another.");
+      return;
+    }
+    
     if (!password) {
       setError("Password is required");
       return;
@@ -155,6 +179,15 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
     
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
+      return;
+    }
+    
+    // Additional password strength check
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    
+    if (!hasUpperCase || !hasNumber) {
+      setError("Password must include at least one uppercase letter and one number");
       return;
     }
     
@@ -191,7 +224,9 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
           placeholder="CoolUser123"
           className="bg-stream-dark border-stream-border"
           autoComplete="username"
+          disabled={isLoading}
         />
+        <p className="text-xs text-gray-400">Must be at least 3 characters</p>
       </div>
       
       <div className="space-y-2">
@@ -205,7 +240,9 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
           placeholder="••••••••"
           className="bg-stream-dark border-stream-border"
           autoComplete="new-password"
+          disabled={isLoading}
         />
+        <p className="text-xs text-gray-400">Must be at least 6 characters with 1 uppercase letter and 1 number</p>
       </div>
 
       <div className="space-y-2">
@@ -219,6 +256,7 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
           placeholder="••••••••"
           className="bg-stream-dark border-stream-border"
           autoComplete="new-password"
+          disabled={isLoading}
         />
       </div>
       
@@ -234,6 +272,13 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
           </>
         ) : 'Create Account'}
       </Button>
+      
+      <div className="flex items-center gap-2 mt-4 p-2 bg-stream-dark/50 rounded-md">
+        <Info size={16} className="text-yellow-400" />
+        <p className="text-xs text-yellow-400">
+          Strong passwords are crucial for account security.
+        </p>
+      </div>
     </form>
   );
 };
