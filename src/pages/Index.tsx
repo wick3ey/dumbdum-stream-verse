@@ -148,7 +148,7 @@ const Index = () => {
             targetAmount: 0,
             currentAmount: 0,
             status: 'requested',
-            userId: c.user_id || ''
+            userId: c.userId || c.user_id || ''
           }));
           setRequestedChallenges(formattedChallenges);
         }
