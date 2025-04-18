@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ChatMessage from './ChatMessage';
 import { Message } from '@/pages/Index';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, X } from 'lucide-react';
+import { Send, X, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 
