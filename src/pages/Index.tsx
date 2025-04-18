@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatMessage from '@/components/ChatMessage';
@@ -63,6 +64,20 @@ const Index = () => {
   const [secondChallenge, setSecondChallenge] = useState('SHITBACK');
   const [secondChallengeProgress, setSecondChallengeProgress] = useState(65);
   
+  // Define the challenges array to use with ChallengesDashboard
+  const [challengesList, setChallengesList] = useState([
+    {
+      name: challengeName,
+      targetAmount: targetAmount,
+      currentAmount: currentAmount,
+    },
+    {
+      name: secondChallenge,
+      targetAmount: 100,
+      currentAmount: secondChallengeProgress,
+    },
+  ]);
+  
   const [userAvatarColor] = useState(() => {
     const storedColor = localStorage.getItem('userAvatarColor');
     if (storedColor && AVATAR_COLORS.includes(storedColor)) {
@@ -110,6 +125,22 @@ const Index = () => {
 
     fetchActiveChallenge();
   }, []);
+
+  // Update challengesList whenever related state changes
+  useEffect(() => {
+    setChallengesList([
+      {
+        name: challengeName,
+        targetAmount: targetAmount,
+        currentAmount: currentAmount,
+      },
+      {
+        name: secondChallenge,
+        targetAmount: 100,
+        currentAmount: secondChallengeProgress,
+      },
+    ]);
+  }, [challengeName, targetAmount, currentAmount, secondChallenge, secondChallengeProgress]);
 
   useEffect(() => {
     updateViewerCount(DEMO_CHANNEL_ID, 1).catch(console.error);
@@ -263,7 +294,7 @@ const Index = () => {
     if (!user) return;
 
     try {
-      const challenge = challenges.find(c => c.name === challengeName);
+      const challenge = challengesList.find(c => c.name === challengeName);
       if (!challenge) {
         toast({
           title: "Error",
@@ -334,6 +365,11 @@ const Index = () => {
     }
   };
 
+  // Adapter function to match DonateButton's expected prop type
+  const handleDonateAdapter = (amount: number) => {
+    handleDonate(amount, challengeName);
+  };
+
   return (
     <div className="min-h-screen bg-stream-dark text-white flex flex-col">
       <div className="scanlines pointer-events-none fixed inset-0 z-50"></div>
@@ -379,18 +415,7 @@ const Index = () => {
           </div>
           
           <ChallengesDashboard 
-            challenges={[
-              {
-                name: challengeName,
-                targetAmount: targetAmount,
-                currentAmount: currentAmount,
-              },
-              {
-                name: secondChallenge,
-                targetAmount: 100,
-                currentAmount: secondChallengeProgress,
-              },
-            ]}
+            challenges={challengesList}
             onDonate={handleDonate}
             onCreateChallenge={handleCreateChallenge}
           />
@@ -410,9 +435,9 @@ const Index = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <DonateButton amount={5} onDonate={handleDonate} />
-              <DonateButton amount={10} onDonate={handleDonate} />
-              <DonateButton amount={20} onDonate={handleDonate} />
+              <DonateButton amount={5} onDonate={handleDonateAdapter} />
+              <DonateButton amount={10} onDonate={handleDonateAdapter} />
+              <DonateButton amount={20} onDonate={handleDonateAdapter} />
             </div>
           </div>
         </div>
@@ -430,7 +455,8 @@ const Index = () => {
           <div className="flex-1">
             <ChatPanel 
               messages={messages} 
-              onSendMessage={handleSendMessage} 
+              onSendMessage={handleSendMessage}
+              onCreateChallenge={handleCreateChallenge}
             />
           </div>
         </div>
