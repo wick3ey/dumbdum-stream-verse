@@ -7,8 +7,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (email: string, password: string, username: string) => Promise<boolean>;
+  signIn: (username: string, password: string) => Promise<boolean>;
+  signUp: (username: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
