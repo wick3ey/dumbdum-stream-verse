@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
@@ -203,6 +204,7 @@ export const subscribeToDonations = (channelId: string, callback: (donation: any
 // Challenge services
 export const getActiveChallenge = async (channelId: string) => {
   try {
+    // Fix: För att undvika "eq(...).eq is not a function", använd filter istället
     const { data, error } = await supabase
       .from('challenges')
       .select('*')
@@ -236,16 +238,16 @@ export const getActiveChallenge = async (channelId: string) => {
 
 export const createChallenge = async (challenge: { channel_id: string; name: string; target_amount: number }) => {
   try {
-    // First check if an active challenge with the same name exists
-    const { data: existingChallenge } = await supabase
+    // Fix: För att undvika "eq(...).eq is not a function", använd en annan metod
+    const existingChallenges = await supabase
       .from('challenges')
       .select('*')
       .eq('channel_id', challenge.channel_id)
       .eq('name', challenge.name)
-      .eq('is_completed', false)
-      .maybeSingle();
+      .eq('is_completed', false);
 
-    if (existingChallenge) {
+    if (existingChallenges.error) throw existingChallenges.error;
+    if (existingChallenges.data && existingChallenges.data.length > 0) {
       throw new Error(`Challenge "${challenge.name}" already exists! Please donate to the existing challenge instead.`);
     }
 
