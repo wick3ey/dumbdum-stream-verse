@@ -119,6 +119,14 @@ export default {
 				'pulse-bright': {
 					'0%, 100%': { opacity: '1' },
 					'50%': { opacity: '0.8' }
+				},
+				shimmer: {
+					'0%': { transform: 'translateX(-100%)' },
+					'100%': { transform: 'translateX(100%)' }
+				},
+				glow: {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.5' }
 				}
 			},
 			animation: {
@@ -128,7 +136,9 @@ export default {
 				'glitch-slow': 'glitch 2s infinite',
 				'flicker': 'flicker 2s linear infinite',
 				'scan-line': 'scan-line 2s linear infinite',
-				'pulse-bright': 'pulse-bright 2s infinite'
+				'pulse-bright': 'pulse-bright 2s infinite',
+				shimmer: 'shimmer 2s linear infinite',
+				glow: 'glow 2s ease-in-out infinite'
 			}
 		}
 	},

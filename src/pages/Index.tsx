@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatMessage from '@/components/ChatMessage';
@@ -9,6 +8,7 @@ import ProgressBar from '@/components/ProgressBar';
 import TargetDisplay from '@/components/TargetDisplay';
 import VideoFeed from '@/components/VideoFeed';
 import ViewerCount from '@/components/ViewerCount';
+import ChallengesDashboard from '@/components/ChallengesDashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   getActiveChallenge, 
@@ -23,7 +23,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// Types - using consistent type for Message that matches ChatPanel's expected type
 export type Message = {
   id: number | string;
   username: string;
@@ -36,25 +35,20 @@ export type Message = {
   messageColor: string;
 };
 
-// Random emojis
 const EMOJIS = ['😈', '👹', '👽', '🤖', '👻', '💀', '🤡', '👺', '😠', '🤯', '🥴', '🤪'];
 
-// Colors for avatars
 const AVATAR_COLORS = [
   'bg-neon-purple', 'bg-neon-green', 'bg-neon-orange', 
   'bg-neon-cyan', 'bg-neon-yellow', 'bg-neon-magenta'
 ];
 
-// Colors for usernames
 const USERNAME_COLORS = [
   'text-neon-purple', 'text-neon-green', 'text-neon-orange', 
   'text-neon-cyan', 'text-neon-yellow', 'text-neon-magenta'
 ];
 
-// Colors for messages
 const MESSAGE_COLORS = ['text-white', 'text-neon-cyan', 'text-neon-blue'];
 
-// This is a demo channel ID - in production you'd get this from the URL or a context
 const DEMO_CHANNEL_ID = "00000000-0000-0000-0000-000000000000";
 
 const Index = () => {
@@ -69,7 +63,6 @@ const Index = () => {
   const [secondChallenge, setSecondChallenge] = useState('SHITBACK');
   const [secondChallengeProgress, setSecondChallengeProgress] = useState(65);
   
-  // User persistent identifiers
   const [userAvatarColor] = useState(() => {
     const storedColor = localStorage.getItem('userAvatarColor');
     if (storedColor && AVATAR_COLORS.includes(storedColor)) {
@@ -100,7 +93,6 @@ const Index = () => {
     return newColor;
   });
 
-  // Effect to fetch the active challenge on component mount
   useEffect(() => {
     const fetchActiveChallenge = async () => {
       try {
@@ -119,12 +111,9 @@ const Index = () => {
     fetchActiveChallenge();
   }, []);
 
-  // Effect to subscribe to real-time updates
   useEffect(() => {
-    // Simulate viewer joining
     updateViewerCount(DEMO_CHANNEL_ID, 1).catch(console.error);
 
-    // Subscribe to chat messages
     const unsubscribeChat = subscribeToChatMessages(DEMO_CHANNEL_ID, (newMessage) => {
       const randomEmoji = newMessage.emoji || EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
       const randomAvatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
@@ -145,7 +134,6 @@ const Index = () => {
       setMessages(prev => [...prev.slice(-49), formattedMessage]);
     });
 
-    // Subscribe to donations
     const unsubscribeDonations = subscribeToDonations(DEMO_CHANNEL_ID, (newDonation) => {
       const randomEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
       const randomAvatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
@@ -165,13 +153,11 @@ const Index = () => {
 
       setMessages(prev => [...prev.slice(-49), formattedDonation]);
       
-      // Update the current amount for the active challenge
       setCurrentAmount(prevAmount => {
         const newAmount = prevAmount + Number(newDonation.amount);
         if (newAmount >= targetAmount && !targetReached) {
           setTargetReached(true);
           
-          // Add system message for target reached
           const systemMessage: Message = {
             id: Date.now(),
             username: 'SYSTEM',
@@ -195,7 +181,6 @@ const Index = () => {
       });
     });
 
-    // Subscribe to challenge updates
     const unsubscribeChallenge = subscribeToChallenge(DEMO_CHANNEL_ID, (updatedChallenge) => {
       setChallengeName(updatedChallenge.name);
       setTargetAmount(Number(updatedChallenge.target_amount));
@@ -209,7 +194,6 @@ const Index = () => {
           variant: "default",
         });
 
-        // Add system message
         const systemMessage: Message = {
           id: Date.now(),
           username: 'SYSTEM',
@@ -225,27 +209,23 @@ const Index = () => {
       }
     });
 
-    // Simulate random viewer count changes
     const viewerInterval = setInterval(() => {
       setViewers(prev => {
-        const change = Math.floor(Math.random() * 5) - 2; // -2 to +2
+        const change = Math.floor(Math.random() * 5) - 2;
         return Math.max(10, prev + change);
       });
     }, 5000);
 
-    // Cleanup subscriptions on component unmount
     return () => {
       unsubscribeChat();
       unsubscribeDonations();
       unsubscribeChallenge();
       clearInterval(viewerInterval);
       
-      // Simulate viewer leaving
       updateViewerCount(DEMO_CHANNEL_ID, -1).catch(console.error);
     };
   }, [challengeName, targetReached, toast, targetAmount]);
 
-  // Function to send chat message
   const handleSendMessage = async (message: string) => {
     if (!user) return;
 
@@ -257,7 +237,6 @@ const Index = () => {
         emoji: userEmoji
       });
       
-      // Optimistically add the message to the UI
       const newMessage: Message = {
         id: `temp-${Date.now()}`,
         username: user.user_metadata.username || user.email?.split('@')[0] || 'You',
@@ -280,7 +259,6 @@ const Index = () => {
     }
   };
 
-  // Function to handle donations
   const handleDonate = async (amount: number) => {
     if (!user) return;
 
@@ -296,7 +274,6 @@ const Index = () => {
         description: `You donated $${amount}!`,
       });
       
-      // Optimistically add the donation to the UI
       const newDonation: Message = {
         id: `temp-${Date.now()}`,
         username: user.user_metadata.username || user.email?.split('@')[0] || 'You',
@@ -311,13 +288,11 @@ const Index = () => {
       
       setMessages(prev => [...prev.slice(-49), newDonation]);
       
-      // Update the current amount locally for immediate feedback
       setCurrentAmount(prev => {
         const newAmount = prev + amount;
         if (newAmount >= targetAmount && !targetReached) {
           setTargetReached(true);
           
-          // Add system message
           const systemMessage: Message = {
             id: Date.now(),
             username: 'SYSTEM',
@@ -342,8 +317,7 @@ const Index = () => {
       });
     }
   };
-  
-  // Function to create a new challenge
+
   const handleCreateChallenge = async (challengeName: string, targetAmount: number) => {
     if (!user || !challengeName.trim()) return;
     
@@ -354,13 +328,11 @@ const Index = () => {
         target_amount: targetAmount
       });
       
-      // Set the new challenge locally
       setChallengeName(challengeName.toUpperCase());
       setTargetAmount(targetAmount);
       setCurrentAmount(0);
       setTargetReached(false);
       
-      // Add system message
       const systemMessage: Message = {
         id: Date.now(),
         username: 'SYSTEM',
@@ -391,7 +363,7 @@ const Index = () => {
     <div className="min-h-screen bg-stream-dark text-white flex flex-col">
       <div className="scanlines pointer-events-none fixed inset-0 z-50"></div>
       
-      <header className="border-b border-stream-border p-4 flex items-center justify-between">
+      <header className="border-b border-stream-border p-4 flex items-center justify-between bg-stream-panel/50 backdrop-blur-sm">
         <DumDummiesLogo />
         <div className="flex items-center gap-4">
           <button className="bg-neon-red text-white px-3 py-1 text-sm font-bold rounded">
@@ -423,9 +395,7 @@ const Index = () => {
       </header>
       
       <main className="flex flex-col md:flex-row flex-1">
-        {/* Main content */}
-        <div className="flex-1 p-4 flex flex-col">
-          {/* Video feed */}
+        <div className="flex-1 p-4 flex flex-col gap-4">
           <div className="relative aspect-video">
             <VideoFeed 
               targetReached={targetReached} 
@@ -433,8 +403,22 @@ const Index = () => {
             />
           </div>
           
-          {/* Viewer count and challenge status */}
-          <div className="mt-4 flex items-center justify-between bg-stream-panel p-2 border border-stream-border">
+          <ChallengesDashboard 
+            challenges={[
+              {
+                name: challengeName,
+                targetAmount: targetAmount,
+                currentAmount: currentAmount,
+              },
+              {
+                name: secondChallenge,
+                targetAmount: 100,
+                currentAmount: secondChallengeProgress,
+              },
+            ]}
+          />
+          
+          <div className="flex items-center justify-between bg-stream-panel p-4 border border-stream-border rounded-lg">
             <ViewerCount count={viewers} />
             
             <div className="flex items-center gap-2">
@@ -448,7 +432,6 @@ const Index = () => {
               </div>
             </div>
             
-            {/* Donation buttons */}
             <div className="flex items-center gap-2">
               <DonateButton amount={5} onDonate={handleDonate} />
               <DonateButton amount={10} onDonate={handleDonate} />
@@ -457,9 +440,7 @@ const Index = () => {
           </div>
         </div>
         
-        {/* Sidebar */}
-        <div className="w-full md:w-80 border-t md:border-t-0 md:border-l border-stream-border flex flex-col">
-          {/* Target display */}
+        <div className="w-full md:w-80 border-t md:border-t-0 md:border-l border-stream-border flex flex-col bg-stream-panel/50 backdrop-blur-sm">
           <div className="p-4 border-b border-stream-border">
             <TargetDisplay
               challengeName={challengeName}
@@ -469,7 +450,6 @@ const Index = () => {
             />
           </div>
           
-          {/* Chat panel */}
           <div className="flex-1">
             <ChatPanel 
               messages={messages} 
