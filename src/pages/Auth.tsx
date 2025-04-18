@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2 } from 'lucide-react';
 
 const Auth = () => {
   const { user, signIn, signUp } = useAuth();
@@ -47,21 +49,38 @@ const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
+    
+    if (!username || !password) {
+      setError("Username and password are required");
+      setIsLoading(false);
+      return;
+    }
+    
     const success = await onLogin(username, password);
     setIsLoading(false);
     
     if (success) {
       navigate('/');
+    } else {
+      setError("Invalid username or password");
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <Alert variant="destructive" className="bg-red-900 border-red-700 text-white">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
       <div className="space-y-2">
         <Label htmlFor="username">Username</Label>
         <Input
@@ -72,6 +91,7 @@ const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) 
           required
           placeholder="YourUsername"
           className="bg-stream-dark border-stream-border"
+          autoComplete="username"
         />
       </div>
       
@@ -85,6 +105,7 @@ const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) 
           required
           placeholder="••••••••"
           className="bg-stream-dark border-stream-border"
+          autoComplete="current-password"
         />
       </div>
       
@@ -93,7 +114,12 @@ const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) 
         disabled={isLoading}
         className="w-full bg-neon-cyan hover:bg-neon-cyan/80 text-black"
       >
-        {isLoading ? 'Logging in...' : 'Login'}
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+            Logging in...
+          </>
+        ) : 'Login'}
       </Button>
     </form>
   );
@@ -104,14 +130,39 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      alert('Passwords do not match');
+    setError(null);
+    
+    // Validate inputs
+    if (!username) {
+      setError("Username is required");
       return;
     }
+    
+    if (username.length < 3) {
+      setError("Username must be at least 3 characters");
+      return;
+    }
+    
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    
     setIsLoading(true);
     const success = await onRegister(username, password);
     setIsLoading(false);
@@ -123,6 +174,12 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <Alert variant="destructive" className="bg-red-900 border-red-700 text-white">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
       <div className="space-y-2">
         <Label htmlFor="username">Username</Label>
         <Input
@@ -133,6 +190,7 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
           required
           placeholder="CoolUser123"
           className="bg-stream-dark border-stream-border"
+          autoComplete="username"
         />
       </div>
       
@@ -146,6 +204,7 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
           required
           placeholder="••••••••"
           className="bg-stream-dark border-stream-border"
+          autoComplete="new-password"
         />
       </div>
 
@@ -159,6 +218,7 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
           required
           placeholder="••••••••"
           className="bg-stream-dark border-stream-border"
+          autoComplete="new-password"
         />
       </div>
       
@@ -167,7 +227,12 @@ const RegisterForm = ({ onRegister }: { onRegister: (username: string, password:
         disabled={isLoading}
         className="w-full bg-neon-magenta hover:bg-neon-magenta/80 text-black"
       >
-        {isLoading ? 'Creating account...' : 'Create Account'}
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+            Creating account...
+          </>
+        ) : 'Create Account'}
       </Button>
     </form>
   );

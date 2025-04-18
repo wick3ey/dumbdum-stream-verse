@@ -32,8 +32,7 @@ export function useSupabaseAuth() {
 
   const signUp = async (username: string, password: string) => {
     try {
-      // For our mock implementation, we'll create a user with the username as the email
-      // In a real implementation with Supabase, you would need to provide an email
+      // Create a mock email using the username
       const mockEmail = `${username}@example.com`;
       
       const { error } = await supabase.auth.signUp({
@@ -73,8 +72,7 @@ export function useSupabaseAuth() {
 
   const signIn = async (username: string, password: string) => {
     try {
-      // For our mock implementation, we'll sign in with the username as the email
-      // In a real implementation with Supabase, you would use an actual email
+      // Create a mock email using the username
       const mockEmail = `${username}@example.com`;
       
       const { error } = await supabase.auth.signInWithPassword({
