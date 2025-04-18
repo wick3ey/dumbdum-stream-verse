@@ -43,8 +43,8 @@ const Auth = () => {
   );
 };
 
-const LoginForm = ({ onLogin }: { onLogin: (email: string, password: string) => Promise<boolean> }) => {
-  const [email, setEmail] = useState('');
+const LoginForm = ({ onLogin }: { onLogin: (username: string, password: string) => Promise<boolean> }) => {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ const LoginForm = ({ onLogin }: { onLogin: (email: string, password: string) => 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const success = await onLogin(email, password);
+    const success = await onLogin(username, password);
     setIsLoading(false);
     
     if (success) {
@@ -63,14 +63,14 @@ const LoginForm = ({ onLogin }: { onLogin: (email: string, password: string) => 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="username">Username</Label>
         <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          id="username"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           required
-          placeholder="you@example.com"
+          placeholder="YourUsername"
           className="bg-stream-dark border-stream-border"
         />
       </div>
@@ -99,17 +99,21 @@ const LoginForm = ({ onLogin }: { onLogin: (email: string, password: string) => 
   );
 };
 
-const RegisterForm = ({ onRegister }: { onRegister: (email: string, password: string, username: string) => Promise<boolean> }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const RegisterForm = ({ onRegister }: { onRegister: (username: string, password: string) => Promise<boolean> }) => {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
     setIsLoading(true);
-    const success = await onRegister(email, password, username);
+    const success = await onRegister(username, password);
     setIsLoading(false);
     
     if (success) {
@@ -133,25 +137,25 @@ const RegisterForm = ({ onRegister }: { onRegister: (email: string, password: st
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          placeholder="you@example.com"
-          className="bg-stream-dark border-stream-border"
-        />
-      </div>
-      
-      <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <Input
           id="password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
+          placeholder="••••••••"
+          className="bg-stream-dark border-stream-border"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           required
           placeholder="••••••••"
           className="bg-stream-dark border-stream-border"
