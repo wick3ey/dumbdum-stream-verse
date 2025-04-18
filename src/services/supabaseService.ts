@@ -8,190 +8,236 @@ export type ChatMessage = Database['public']['Tables']['chat_messages']['Row'];
 export type Donation = Database['public']['Tables']['donations']['Row'];
 export type Challenge = Database['public']['Tables']['challenges']['Row'];
 
+// Mock implementation for the services
+// These functions will return mock data instead of actual data from Supabase
+
 // Profile services
 export const getProfile = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-  
-  if (error) throw error;
-  return data as Profile;
+  // Return a mock profile
+  return {
+    id: userId,
+    username: 'DemoUser',
+    avatar_url: null,
+    bio: 'This is a mock profile',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  } as Profile;
 };
 
 export const updateProfile = async (userId: string, updates: { username?: string; bio?: string; avatar_url?: string }) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', userId)
-    .select();
-  
-  if (error) throw error;
-  return data[0] as Profile;
+  // Return the updated profile
+  return {
+    id: userId,
+    username: updates.username || 'DemoUser',
+    avatar_url: updates.avatar_url || null,
+    bio: updates.bio || 'This is a mock profile',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  } as Profile;
 };
 
 // Channel services
 export const getChannels = async () => {
-  const { data, error } = await supabase
-    .from('channels')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
-  if (error) throw error;
-  return data as Channel[];
+  // Return a mock channel list
+  return [{
+    id: '00000000-0000-0000-0000-000000000000',
+    title: 'Demo Channel',
+    description: 'This is a mock channel',
+    owner_id: '00000000-0000-0000-0000-000000000001',
+    is_live: true,
+    viewer_count: 30,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }] as Channel[];
 };
 
 export const getChannel = async (channelId: string) => {
-  const { data, error } = await supabase
-    .from('channels')
-    .select('*')
-    .eq('id', channelId)
-    .single();
-  
-  if (error) throw error;
-  return data as Channel;
+  // Return a mock channel
+  return {
+    id: channelId,
+    title: 'Demo Channel',
+    description: 'This is a mock channel',
+    owner_id: '00000000-0000-0000-0000-000000000001',
+    is_live: true,
+    viewer_count: 30,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  } as Channel;
 };
 
 export const createChannel = async (channel: { title: string; description?: string; owner_id: string }) => {
-  const { data, error } = await supabase
-    .from('channels')
-    .insert(channel)
-    .select();
-  
-  if (error) throw error;
-  return data[0] as Channel;
+  // Return the created channel
+  return {
+    id: '00000000-0000-0000-0000-000000000000',
+    title: channel.title,
+    description: channel.description || null,
+    owner_id: channel.owner_id,
+    is_live: false,
+    viewer_count: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  } as Channel;
 };
 
 export const updateViewerCount = async (channelId: string, change: number) => {
-  await supabase.rpc('update_viewer_count', { channel_uuid: channelId, count_change: change });
+  // Mock implementation
+  console.log(`Updating viewer count for channel ${channelId} by ${change}`);
 };
 
 // Chat services
 export const getChatMessages = async (channelId: string, limit = 50) => {
-  const { data, error } = await supabase
-    .from('chat_messages')
-    .select('*, profiles:user_id(username, avatar_url)')
-    .eq('channel_id', channelId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  
-  if (error) throw error;
-  return data;
+  // Return mock messages
+  return Array.from({ length: 5 }, (_, i) => ({
+    id: `message-${i}`,
+    channel_id: channelId,
+    user_id: `user-${i}`,
+    message: `This is mock message ${i}`,
+    emoji: '😀',
+    is_system_message: false,
+    created_at: new Date().toISOString(),
+    profiles: {
+      username: `User${i}`,
+      avatar_url: null
+    }
+  }));
 };
 
 export const sendChatMessage = async (message: { channel_id: string; user_id: string; message: string; emoji?: string }) => {
-  const { data, error } = await supabase
-    .from('chat_messages')
-    .insert(message)
-    .select();
-  
-  if (error) throw error;
-  return data[0] as ChatMessage;
+  // Return the created message
+  return {
+    id: `message-${Date.now()}`,
+    channel_id: message.channel_id,
+    user_id: message.user_id,
+    message: message.message,
+    emoji: message.emoji || '😀',
+    is_system_message: false,
+    created_at: new Date().toISOString()
+  } as ChatMessage;
 };
 
 // Subscribe to new chat messages
 export const subscribeToChatMessages = (channelId: string, callback: (message: any) => void) => {
-  const channel = supabase
-    .channel('public:chat_messages')
-    .on('postgres_changes', 
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `channel_id=eq.${channelId}`
-      }, 
-      (payload) => callback(payload.new)
-    )
-    .subscribe();
+  // Mock subscription
+  const intervalId = setInterval(() => {
+    // Simulate receiving a new message every 10 seconds
+    if (Math.random() > 0.7) {
+      callback({
+        id: `message-${Date.now()}`,
+        channel_id: channelId,
+        user_id: `user-${Math.floor(Math.random() * 10)}`,
+        message: `Random mock message at ${new Date().toLocaleTimeString()}`,
+        emoji: '😀',
+        is_system_message: false,
+        created_at: new Date().toISOString()
+      });
+    }
+  }, 10000);
 
   return () => {
-    supabase.removeChannel(channel);
+    clearInterval(intervalId);
   };
 };
 
 // Donation services
 export const createDonation = async (donation: { channel_id: string; user_id: string; amount: number; message?: string }) => {
-  const { data, error } = await supabase
-    .from('donations')
-    .insert(donation)
-    .select();
-  
-  if (error) throw error;
-  return data[0] as Donation;
+  // Return the created donation
+  return {
+    id: `donation-${Date.now()}`,
+    channel_id: donation.channel_id,
+    user_id: donation.user_id,
+    amount: donation.amount,
+    message: donation.message || null,
+    created_at: new Date().toISOString()
+  } as Donation;
 };
 
 export const getChannelDonations = async (channelId: string) => {
-  const { data, error } = await supabase
-    .from('donations')
-    .select('*, profiles:user_id(username)')
-    .eq('channel_id', channelId)
-    .order('created_at', { ascending: false });
-  
-  if (error) throw error;
-  return data;
+  // Return mock donations
+  return Array.from({ length: 3 }, (_, i) => ({
+    id: `donation-${i}`,
+    channel_id: channelId,
+    user_id: `user-${i}`,
+    amount: 5 + i * 5,
+    message: `Thank you for the stream! Mock donation ${i}`,
+    created_at: new Date().toISOString(),
+    profiles: {
+      username: `Donor${i}`
+    }
+  }));
 };
 
 // Subscribe to new donations
 export const subscribeToDonations = (channelId: string, callback: (donation: any) => void) => {
-  const channel = supabase
-    .channel('public:donations')
-    .on('postgres_changes', 
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'donations',
-        filter: `channel_id=eq.${channelId}`
-      }, 
-      (payload) => callback(payload.new)
-    )
-    .subscribe();
+  // Mock subscription
+  const intervalId = setInterval(() => {
+    // Simulate receiving a new donation every 30 seconds
+    if (Math.random() > 0.8) {
+      callback({
+        id: `donation-${Date.now()}`,
+        channel_id: channelId,
+        user_id: `user-${Math.floor(Math.random() * 10)}`,
+        amount: Math.floor(Math.random() * 50) + 5,
+        message: `Random mock donation at ${new Date().toLocaleTimeString()}`,
+        created_at: new Date().toISOString()
+      });
+    }
+  }, 30000);
 
   return () => {
-    supabase.removeChannel(channel);
+    clearInterval(intervalId);
   };
 };
 
 // Challenge services
 export const getActiveChallenge = async (channelId: string) => {
-  const { data, error } = await supabase
-    .from('challenges')
-    .select('*')
-    .eq('channel_id', channelId)
-    .eq('is_completed', false)
-    .order('created_at', { ascending: false })
-    .maybeSingle();
-  
-  if (error) throw error;
-  return data as Challenge;
+  // Return a mock challenge
+  return {
+    id: `challenge-${Date.now()}`,
+    channel_id: channelId,
+    name: 'DRINK PISS',
+    target_amount: 20,
+    current_amount: 10,
+    is_completed: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  } as Challenge;
 };
 
 export const createChallenge = async (challenge: { channel_id: string; name: string; target_amount: number }) => {
-  const { data, error } = await supabase
-    .from('challenges')
-    .insert(challenge)
-    .select();
-  
-  if (error) throw error;
-  return data[0] as Challenge;
+  // Return the created challenge
+  return {
+    id: `challenge-${Date.now()}`,
+    channel_id: challenge.channel_id,
+    name: challenge.name,
+    target_amount: challenge.target_amount,
+    current_amount: 0,
+    is_completed: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  } as Challenge;
 };
 
 // Subscribe to challenge updates
 export const subscribeToChallenge = (channelId: string, callback: (challenge: any) => void) => {
-  const channel = supabase
-    .channel('public:challenges')
-    .on('postgres_changes', 
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'challenges',
-        filter: `channel_id=eq.${channelId}`
-      }, 
-      (payload) => callback(payload.new)
-    )
-    .subscribe();
+  // Mock subscription
+  const intervalId = setInterval(() => {
+    // Simulate receiving a challenge update every 15 seconds
+    if (Math.random() > 0.7) {
+      const currentAmount = Math.floor(Math.random() * 20);
+      callback({
+        id: `challenge-${Date.now()}`,
+        channel_id: channelId,
+        name: 'DRINK PISS',
+        target_amount: 20,
+        current_amount: currentAmount,
+        is_completed: currentAmount >= 20,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    }
+  }, 15000);
 
   return () => {
-    supabase.removeChannel(channel);
+    clearInterval(intervalId);
   };
 };
