@@ -236,6 +236,19 @@ export const getActiveChallenge = async (channelId: string) => {
 
 export const createChallenge = async (challenge: { channel_id: string; name: string; target_amount: number }) => {
   try {
+    // First check if an active challenge with the same name exists
+    const { data: existingChallenge } = await supabase
+      .from('challenges')
+      .select('*')
+      .eq('channel_id', challenge.channel_id)
+      .eq('name', challenge.name)
+      .eq('is_completed', false)
+      .maybeSingle();
+
+    if (existingChallenge) {
+      throw new Error(`Challenge "${challenge.name}" already exists! Please donate to the existing challenge instead.`);
+    }
+
     const { data, error } = await supabase
       .from('challenges')
       .insert([{

@@ -259,10 +259,20 @@ const Index = () => {
     }
   };
 
-  const handleDonate = async (amount: number) => {
+  const handleDonate = async (amount: number, challengeName: string) => {
     if (!user) return;
 
     try {
+      const challenge = challenges.find(c => c.name === challengeName);
+      if (!challenge) {
+        toast({
+          title: "Error",
+          description: "Challenge not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await createDonation({
         channel_id: DEMO_CHANNEL_ID,
         user_id: user.id,
@@ -271,43 +281,8 @@ const Index = () => {
 
       toast({
         title: "Thank you!",
-        description: `You donated $${amount}!`,
+        description: `You donated $${amount} to ${challengeName}!`,
       });
-      
-      const newDonation: Message = {
-        id: `temp-${Date.now()}`,
-        username: user.user_metadata.username || user.email?.split('@')[0] || 'You',
-        message: 'contributed',
-        emoji: userEmoji,
-        type: 'donation',
-        amount: amount,
-        avatarColor: userAvatarColor,
-        usernameColor: usernameColor,
-        messageColor: 'text-white'
-      };
-      
-      setMessages(prev => [...prev.slice(-49), newDonation]);
-      
-      setCurrentAmount(prev => {
-        const newAmount = prev + amount;
-        if (newAmount >= targetAmount && !targetReached) {
-          setTargetReached(true);
-          
-          const systemMessage: Message = {
-            id: Date.now(),
-            username: 'SYSTEM',
-            message: `TARGET REACHED! Time to ${challengeName.toLowerCase()}!`,
-            emoji: '🎉',
-            type: 'chat',
-            avatarColor: 'bg-neon-red',
-            usernameColor: 'text-neon-red',
-            messageColor: 'text-neon-yellow'
-          };
-          setMessages(prev => [...prev.slice(-49), systemMessage]);
-        }
-        return newAmount;
-      });
-      
     } catch (error) {
       console.error('Error creating donation:', error);
       toast({
@@ -416,6 +391,8 @@ const Index = () => {
                 currentAmount: secondChallengeProgress,
               },
             ]}
+            onDonate={handleDonate}
+            onCreateChallenge={handleCreateChallenge}
           />
           
           <div className="flex items-center justify-between bg-stream-panel p-4 border border-stream-border rounded-lg">
@@ -454,7 +431,6 @@ const Index = () => {
             <ChatPanel 
               messages={messages} 
               onSendMessage={handleSendMessage} 
-              onCreateChallenge={handleCreateChallenge}
             />
           </div>
         </div>
