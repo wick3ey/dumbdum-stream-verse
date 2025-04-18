@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatMessage from '@/components/ChatMessage';
@@ -64,7 +63,6 @@ const Index = () => {
   const [secondChallenge, setSecondChallenge] = useState('SHITBACK');
   const [secondChallengeProgress, setSecondChallengeProgress] = useState(65);
   
-  // Define the challenges array to use with ChallengesDashboard
   const [challengesList, setChallengesList] = useState([
     {
       name: challengeName,
@@ -126,7 +124,6 @@ const Index = () => {
     fetchActiveChallenge();
   }, []);
 
-  // Update challengesList whenever related state changes
   useEffect(() => {
     setChallengesList([
       {
@@ -365,7 +362,6 @@ const Index = () => {
     }
   };
 
-  // Adapter function to match DonateButton's expected prop type
   const handleDonateAdapter = (amount: number) => {
     handleDonate(amount, challengeName);
   };

@@ -207,7 +207,7 @@ export const getActiveChallenge = async (channelId: string) => {
       .from('challenges')
       .select('*')
       .eq('channel_id', channelId)
-      .eq('is_completed', false)
+      .is('is_completed', false)
       .order('created_at', { ascending: false })
       .maybeSingle();
 
