@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatPanel from '@/components/ChatPanel';
@@ -38,6 +37,15 @@ export type Message = {
   messageColor: string;
 };
 
+export type Challenge = {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  status: 'requested' | 'active' | 'completed';
+  userId?: string;
+};
+
 const EMOJIS = ['😈', '👹', '👽', '🤖', '👻', '💀', '🤡', '👺', '😠', '🤯', '🥴', '🤪'];
 
 const AVATAR_COLORS = [
@@ -65,7 +73,7 @@ const Index = () => {
   const [targetReached, setTargetReached] = useState(false);
   
   // Track both active and requested challenges
-  const [activeChallenges, setActiveChallenges] = useState([
+  const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([
     {
       id: "default",
       name: challengeName,
@@ -75,7 +83,7 @@ const Index = () => {
     },
   ]);
   
-  const [requestedChallenges, setRequestedChallenges] = useState<any[]>([]);
+  const [requestedChallenges, setRequestedChallenges] = useState<Challenge[]>([]);
   const [isCreator, setIsCreator] = useState(true); // For demo purposes
   
   const [userAvatarColor] = useState(() => {
@@ -135,7 +143,7 @@ const Index = () => {
       try {
         const challenges = await getRequestedChallenges(DEMO_CHANNEL_ID);
         if (challenges) {
-          const formattedChallenges = challenges.map(c => ({
+          const formattedChallenges: Challenge[] = challenges.map(c => ({
             id: c.id,
             name: c.name,
             targetAmount: 0, // Not set yet
@@ -399,7 +407,7 @@ const Index = () => {
       });
       
       // Add to requested challenges list (optimistic update)
-      const newChallenge = {
+      const newChallenge: Challenge = {
         id: `temp-${Date.now()}`,
         name: challengeName.toUpperCase(),
         targetAmount: 0,

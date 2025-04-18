@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 type Challenge = {
   id: string;
@@ -189,8 +190,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                           
                           <Progress 
                             value={progress} 
-                            className="h-2 bg-stream-panel" 
-                            indicatorClassName={progress >= 100 ? "bg-neon-red animate-pulse" : "bg-neon-green"}
+                            className={progress >= 100 ? "h-2 bg-stream-panel" : "h-2 bg-stream-panel"}
                           />
                           
                           <div className="flex items-center justify-between mt-2">
