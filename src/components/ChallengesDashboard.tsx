@@ -190,7 +190,8 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                           
                           <Progress 
                             value={progress} 
-                            className={progress >= 100 ? "h-2 bg-stream-panel" : "h-2 bg-stream-panel"}
+                            className="h-2 bg-stream-panel"
+                            indicatorClassName={progress >= 100 ? "bg-neon-red animate-pulse" : "bg-neon-green"}
                           />
                           
                           <div className="flex items-center justify-between mt-2">

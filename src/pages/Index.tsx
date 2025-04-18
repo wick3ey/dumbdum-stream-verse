@@ -72,7 +72,6 @@ const Index = () => {
   const [viewers, setViewers] = useState(30);
   const [targetReached, setTargetReached] = useState(false);
   
-  // Track both active and requested challenges
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([
     {
       id: "default",
@@ -84,8 +83,8 @@ const Index = () => {
   ]);
   
   const [requestedChallenges, setRequestedChallenges] = useState<Challenge[]>([]);
-  const [isCreator, setIsCreator] = useState(true); // For demo purposes
-  
+  const [isCreator, setIsCreator] = useState(true);
+
   const [userAvatarColor] = useState(() => {
     const storedColor = localStorage.getItem('userAvatarColor');
     if (storedColor && AVATAR_COLORS.includes(storedColor)) {
@@ -146,10 +145,10 @@ const Index = () => {
           const formattedChallenges: Challenge[] = challenges.map(c => ({
             id: c.id,
             name: c.name,
-            targetAmount: 0, // Not set yet
+            targetAmount: 0,
             currentAmount: 0,
             status: 'requested',
-            userId: c.user_id
+            userId: c.user_id || ''
           }));
           setRequestedChallenges(formattedChallenges);
         }
@@ -231,7 +230,6 @@ const Index = () => {
         return newAmount;
       });
       
-      // Also update the active challenges array
       setActiveChallenges(prev => {
         return prev.map(challenge => {
           if (challenge.name === challengeName) {
@@ -247,12 +245,9 @@ const Index = () => {
     });
 
     const unsubscribeChallenge = subscribeToChallenge(DEMO_CHANNEL_ID, (updatedChallenge) => {
-      // Handle status changes - if a challenge is approved, we need to refresh both lists
       if (updatedChallenge.status === 'active') {
-        // Remove from requested challenges if it was there
         setRequestedChallenges(prev => prev.filter(c => c.id !== updatedChallenge.id));
         
-        // Add to active challenges if it's not there
         const existsInActive = activeChallenges.some(c => c.id === updatedChallenge.id);
         if (!existsInActive) {
           setActiveChallenges(prev => [
@@ -266,7 +261,6 @@ const Index = () => {
             }
           ]);
         } else {
-          // Update existing active challenge
           setActiveChallenges(prev => prev.map(c => {
             if (c.id === updatedChallenge.id) {
               return {
@@ -282,7 +276,6 @@ const Index = () => {
         }
       }
       
-      // Update main active challenge if this is the current one
       if (updatedChallenge.id === activeChallenges[0]?.id) {
         setChallengeName(updatedChallenge.name);
         setTargetAmount(Number(updatedChallenge.target_amount));
@@ -406,7 +399,6 @@ const Index = () => {
         user_id: user.id
       });
       
-      // Add to requested challenges list (optimistic update)
       const newChallenge: Challenge = {
         id: `temp-${Date.now()}`,
         name: challengeName.toUpperCase(),
@@ -448,7 +440,6 @@ const Index = () => {
     try {
       await approveChallenge(challengeId, targetAmount);
       
-      // Backend will handle the update through subscription
       toast({
         title: "Challenge approved",
         description: "Challenge has been approved and is now active",
@@ -467,7 +458,6 @@ const Index = () => {
     try {
       await rejectChallenge(challengeId);
       
-      // Remove from requested challenges
       setRequestedChallenges(prev => prev.filter(c => c.id !== challengeId));
       
       toast({
@@ -490,7 +480,6 @@ const Index = () => {
     }
   };
 
-  // For demo purposes, simulate some requested challenges
   useEffect(() => {
     if (requestedChallenges.length === 0) {
       setRequestedChallenges([
