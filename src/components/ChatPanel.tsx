@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ChatMessage from './ChatMessage';
 import { Message } from '@/pages/Index';
@@ -5,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Send, AlertCircle, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
-import { motion, AnimatePresence } from 'framer-motion';
 
 type ChatPanelProps = {
   messages: Message[];
@@ -123,16 +123,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
             <div className="mb-4">
               <label className="block text-neon-cyan mb-2 font-medium">CHOOSE FROM EXTREME CHALLENGES:</label>
               <div className="grid grid-cols-1 gap-2 mb-4 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                <AnimatePresence>
-                  {extremeChallenges.map((challenge, index) => (
-                    <motion.button
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      transition={{ duration: 0.2, delay: index * 0.05 }}
-                      key={index}
+                {extremeChallenges.map((challenge, index) => (
+                  <div
+                    key={index}
+                    className={`
+                      opacity-0 translate-y-1
+                      animate-fade-in
+                      [animation-delay:${index * 50}ms]
+                      [animation-fill-mode:forwards]
+                    `}
+                  >
+                    <button
                       onClick={() => handleChallengeSubmit(challenge)}
-                      className="text-left bg-stream-panel p-3 border border-stream-border hover:border-neon-red hover:text-neon-red hover:bg-red-900/20 transition-all duration-200 group rounded"
+                      className="w-full text-left bg-stream-panel p-3 border border-stream-border hover:border-neon-red hover:text-neon-red hover:bg-red-900/20 transition-all duration-200 group rounded"
                     >
                       <div className="flex justify-between items-center">
                         <span>{challenge}</span>
@@ -140,9 +143,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
                           REQUEST &rarr;
                         </span>
                       </div>
-                    </motion.button>
-                  ))}
-                </AnimatePresence>
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
             
