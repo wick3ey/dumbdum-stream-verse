@@ -1,18 +1,17 @@
 
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const Auth = () => {
-  const { user, signIn, signUp } = useSupabaseAuth();
+  const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   
-  // If user is already logged in, redirect to home page
   if (user) {
     return <Navigate to="/" replace />;
   }
