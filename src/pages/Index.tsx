@@ -449,15 +449,55 @@ const Index = () => {
       });
     }
   };
-  
+
   const handleApproveChallenge = async (challengeId: string, targetAmount: number) => {
     try {
-      await approveChallenge(challengeId, targetAmount);
+      const approvedChallenge = await approveChallenge(challengeId, targetAmount);
       
-      toast({
-        title: "Challenge approved",
-        description: "Challenge has been approved and is now active",
-      });
+      // Update requested challenges list
+      setRequestedChallenges(prev => prev.filter(c => c.id !== challengeId));
+      
+      // Get the challenge details from requested challenges
+      const challengeDetails = requestedChallenges.find(c => c.id === challengeId);
+      
+      if (challengeDetails) {
+        // Add to active challenges
+        const newChallenge: Challenge = {
+          id: challengeId,
+          name: challengeDetails.name,
+          targetAmount: targetAmount,
+          currentAmount: 0,
+          status: 'active'
+        };
+        
+        setActiveChallenges(prev => [newChallenge, ...prev]);
+        
+        // Update current challenge display
+        setChallengeName(challengeDetails.name);
+        setTargetAmount(targetAmount);
+        setCurrentAmount(0);
+        setTargetReached(false);
+        
+        // Send system message to chat
+        const systemMessage: Message = {
+          id: Date.now(),
+          username: 'SYSTEM',
+          message: `NEW CHALLENGE ACTIVATED: ${challengeDetails.name} - Target: $${targetAmount}`,
+          emoji: '🎯',
+          type: 'chat',
+          avatarColor: 'bg-neon-red',
+          usernameColor: 'text-neon-red',
+          messageColor: 'text-neon-yellow'
+        };
+        
+        setMessages(prev => [...prev.slice(-49), systemMessage]);
+        
+        toast({
+          title: "Challenge Activated",
+          description: `${challengeDetails.name} is now active with a target of $${targetAmount}`,
+          variant: "default",
+        });
+      }
     } catch (error) {
       console.error('Error approving challenge:', error);
       toast({

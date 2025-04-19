@@ -137,6 +137,19 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
       onApproveChallenge(selectedRequestedChallenge.id, amount);
       setShowApproveDialog(false);
       setSelectedRequestedChallenge(null);
+      
+      // Update requested challenges list
+      // setRequestedChallenges(prev => prev.filter(c => c.id !== selectedRequestedChallenge.id));
+      
+      // Add to active challenges
+      const newChallenge: Challenge = {
+        id: selectedRequestedChallenge.id,
+        name: selectedRequestedChallenge.name,
+        targetAmount: amount,
+        currentAmount: 0,
+        status: 'active'
+      };
+      
       toast({
         title: "Challenge Approved",
         description: "The challenge has been approved and is now active",
