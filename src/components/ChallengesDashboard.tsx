@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
@@ -61,7 +60,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   onCreateChallenge,
   isCreator = false
 }) => {
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const { user } = useAuth();
   const { viewMode, isCurrentUserCreator } = useViewMode();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
@@ -131,7 +130,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
 
   const handleDonate = (amount: number) => {
     if (!selectedChallenge) {
-      toast({
+      uiToast({
         title: "No challenge selected",
         description: "Please select a challenge to donate to",
         variant: "destructive",
@@ -146,7 +145,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   const handleCustomDonate = () => {
     const amount = parseFloat(customAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast({
+      uiToast({
         title: "Invalid amount",
         description: "Please enter a valid donation amount",
         variant: "destructive",
@@ -166,7 +165,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
 
     const amount = parseFloat(targetAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast({
+      uiToast({
         title: "Invalid amount",
         description: "Please enter a valid target amount",
         variant: "destructive",
@@ -179,7 +178,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
       setShowApproveDialog(false);
       setSelectedRequestedChallenge(null);
       
-      toast({
+      uiToast({
         title: "Challenge Approved",
         description: "The challenge has been approved and is now active",
         variant: "default",
@@ -199,7 +198,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
       onRejectChallenge(selectedRequestedChallenge.id);
       setShowApproveDialog(false);
       setSelectedRequestedChallenge(null);
-      toast({
+      uiToast({
         title: "Challenge Rejected",
         description: "The challenge request has been rejected",
         variant: "default",
@@ -209,7 +208,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
 
   const handleCreateChallenge = async () => {
     if (!user) {
-      toast({
+      uiToast({
         title: "Login required",
         description: "You must be logged in to request a challenge",
         variant: "destructive",
@@ -218,7 +217,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
     }
     
     if (!challengeName.trim()) {
-      toast({
+      uiToast({
         title: "Challenge required",
         description: "Please enter a challenge name",
         variant: "destructive",
@@ -238,16 +237,13 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
       setShowChallengeModal(false);
       setChallengeName('');
       
-      toast({
-        title: "Challenge Requested",
-        description: `Your challenge "${challengeName.toUpperCase()}" has been submitted for approval`,
+      toast.success("Challenge Requested", {
+        description: `Your challenge "${challengeName.toUpperCase()}" has been submitted for approval`
       });
     } catch (error: any) {
       console.error('Error creating challenge:', error);
-      toast({
-        title: "Request failed",
-        description: error.message || "Failed to submit your challenge request",
-        variant: "destructive",
+      toast.error("Request failed", {
+        description: error.message || "Failed to submit your challenge request"
       });
     }
   };

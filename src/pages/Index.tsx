@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatPanel from '@/components/ChatPanel';
@@ -69,7 +68,7 @@ const DEMO_CHANNEL_ID = "00000000-0000-0000-0000-000000000000";
 const Index = () => {
   const { user, signOut } = useAuth();
   const { viewMode, isCurrentUserCreator } = useViewMode();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentAmount, setCurrentAmount] = useState(0);
   const [targetAmount, setTargetAmount] = useState(20);
@@ -243,7 +242,7 @@ const Index = () => {
           
           setMessages(prev => [...prev.slice(-49), systemMessage]);
           
-          toast({
+          uiToast({
             title: "Challenge completed!",
             description: `${challengeName} target reached!`,
             variant: "default",
@@ -319,7 +318,7 @@ const Index = () => {
         setTargetReached(updatedChallenge.is_completed || Number(updatedChallenge.current_amount) >= Number(updatedChallenge.target_amount));
         
         if (updatedChallenge.is_completed && !targetReached) {
-          toast({
+          uiToast({
             title: "Challenge completed!",
             description: `${challengeName} target reached!`,
             variant: "default",
@@ -356,7 +355,7 @@ const Index = () => {
       
       updateViewerCount(DEMO_CHANNEL_ID, -1).catch(console.error);
     };
-  }, [challengeName, targetReached, toast, targetAmount, activeChallenges]);
+  }, [challengeName, targetReached, uiToast, targetAmount, activeChallenges]);
 
   const handleSendMessage = async (message: string) => {
     if (!user) return;
@@ -383,7 +382,7 @@ const Index = () => {
       setMessages(prev => [...prev.slice(-49), newMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
-      toast({
+      uiToast({
         title: "Error",
         description: "Failed to send message",
         variant: "destructive",
@@ -397,7 +396,7 @@ const Index = () => {
     try {
       const challenge = activeChallenges.find(c => c.name === challengeName);
       if (!challenge) {
-        toast({
+        uiToast({
           title: "Error",
           description: "Challenge not found",
           variant: "destructive",
@@ -411,13 +410,13 @@ const Index = () => {
         amount: amount,
       });
 
-      toast({
+      uiToast({
         title: "Thank you!",
         description: `You donated $${amount} to ${challengeName}!`,
       });
     } catch (error) {
       console.error('Error creating donation:', error);
-      toast({
+      uiToast({
         title: "Error",
         description: "Failed to process donation",
         variant: "destructive",
@@ -459,13 +458,13 @@ const Index = () => {
       
       setMessages(prev => [...prev.slice(-49), systemMessage]);
       
-      toast({
+      uiToast({
         title: "Challenge requested!",
         description: `Your challenge request has been submitted: ${challengeName.toUpperCase()}`,
       });
     } catch (error) {
       console.error('Error creating challenge:', error);
-      toast({
+      uiToast({
         title: "Error",
         description: "Failed to create challenge",
         variant: "destructive",
@@ -522,7 +521,7 @@ const Index = () => {
         
         setMessages(prev => [...prev.slice(-49), systemMessage]);
         
-        toast({
+        uiToast({
           title: "Challenge Activated",
           description: `${challengeDetails.name} is now active with a target of $${targetAmount}`,
           variant: "default",
@@ -530,7 +529,7 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Error approving challenge:', error);
-      toast({
+      uiToast({
         title: "Error",
         description: "Failed to approve challenge",
         variant: "destructive",
@@ -551,13 +550,13 @@ const Index = () => {
       
       setRequestedChallenges(prev => prev.filter(c => c.id !== challengeId));
       
-      toast({
+      uiToast({
         title: "Challenge rejected",
         description: "Challenge request has been rejected",
       });
     } catch (error) {
       console.error('Error rejecting challenge:', error);
-      toast({
+      uiToast({
         title: "Error",
         description: "Failed to reject challenge",
         variant: "destructive",
@@ -594,7 +593,7 @@ const Index = () => {
     
     setMessages(prev => [...prev.slice(-49), systemMessage]);
     
-    toast({
+    uiToast({
       title: isStreamLive ? "Stream Ended" : "Stream Started",
       description: isStreamLive ? "The live stream has ended" : "The live stream has started",
       variant: "default",
