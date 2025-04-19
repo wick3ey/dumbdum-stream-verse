@@ -1,63 +1,88 @@
 
 /// <reference types="vite/client" />
 
-// Lägg till grundläggande typdeklarationer för React JSX
-declare namespace React {
-  interface ReactElement<P = any, T extends string | JSXElementConstructor<any> = string | JSXElementConstructor<any>> {
-    type: T;
-    props: P;
-    key: Key | null;
-  }
-  
-  type ComponentType<P = {}> = ComponentClass<P> | FunctionComponent<P>;
-  type ElementType<P = any> = {
-    [K in keyof JSX.IntrinsicElements]: P extends JSX.IntrinsicElements[K] ? K : never
-  }[keyof JSX.IntrinsicElements] | ComponentType<P>;
-  interface FunctionComponent<P = {}> {
-    (props: P, context?: any): ReactElement<any, any> | null;
-    displayName?: string;
-  }
-  interface ComponentClass<P = {}, S = ComponentState> extends StaticLifecycle<P, S> {
-    new(props: P, context?: any): Component<P, S>;
-    displayName?: string;
-  }
-  type ComponentState = any;
-  interface Component<P, S> {
-    render(): ReactNode;
-  }
-  interface StaticLifecycle<P, S> {}
-  type Key = string | number;
-  type ReactText = string | number;
-  type ReactChild = ReactElement | ReactText;
-  type ReactFragment = {} | ReactNodeArray;
-  interface ReactNodeArray extends Array<ReactNode> {}
-  type ReactNode = ReactChild | ReactFragment | boolean | null | undefined;
-  type JSXElementConstructor<P> = ((props: P) => ReactElement<any, any> | null);
+// Global deklaration av grundläggande moduler som saknas
+declare module 'react' {
+  export * from 'react';
 }
 
-declare namespace JSX {
-  interface Element extends React.ReactElement<any, any> {}
-  interface IntrinsicElements {
-    [elemName: string]: any;
-  }
+declare module 'react/jsx-runtime' {
+  export * from 'react/jsx-runtime';
 }
 
-// HLS.js typdeklarationer
+declare module 'react-dom/client' {
+  export * from 'react-dom/client';
+}
+
+declare module 'react-router-dom' {
+  export * from 'react-router-dom';
+}
+
+declare module '@tanstack/react-query' {
+  export * from '@tanstack/react-query';
+}
+
+declare module 'lucide-react' {
+  export * from 'lucide-react';
+}
+
+declare module 'sonner' {
+  export * from 'sonner';
+}
+
+declare module '@radix-ui/react-slot' {
+  export * from '@radix-ui/react-slot';
+}
+
+declare module 'class-variance-authority' {
+  export * from 'class-variance-authority';
+}
+
+declare module '@radix-ui/react-progress' {
+  export * from '@radix-ui/react-progress';
+}
+
+declare module '@radix-ui/react-accordion' {
+  export * from '@radix-ui/react-accordion';
+}
+
+declare module '@radix-ui/react-alert-dialog' {
+  export * from '@radix-ui/react-alert-dialog';
+}
+
+declare module '@radix-ui/react-aspect-ratio' {
+  export * from '@radix-ui/react-aspect-ratio';
+}
+
+declare module '@radix-ui/react-avatar' {
+  export * from '@radix-ui/react-avatar';
+}
+
+// HLS.js förenklad typdeklaration
+interface HlsConfig {}
+
 interface HlsInstance {
   loadSource(url: string): void;
-  attachMedia(video: HTMLVideoElement): void;
+  attachMedia(video: HTMLMediaElement): void;
   on(event: string, callback: () => void): void;
   destroy(): void;
 }
 
-interface Window {
-  Hls: {
-    new(): HlsInstance;
-    isSupported(): boolean;
-    Events: {
-      MANIFEST_PARSED: string;
-      ERROR: string;
-      MEDIA_ATTACHED: string;
-    };
+declare namespace Hls {
+  export const isSupported: () => boolean;
+  export const Events: {
+    MANIFEST_PARSED: string;
+    ERROR: string;
   };
+  export class Hls {
+    constructor(config?: HlsConfig);
+    loadSource(url: string): void;
+    attachMedia(video: HTMLMediaElement): void;
+    on(event: string, callback: () => void): void;
+    destroy(): void;
+  }
+}
+
+interface Window {
+  Hls: any;
 }

@@ -10,89 +10,123 @@ type VideoFeedProps = {
 
 const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, streamUrl, isLive }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [hlsLoaded, setHlsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!streamUrl || !isLive || !videoRef.current) return;
+    // Reset loading state when stream URL changes
+    setIsLoading(true);
+    
+    if (!streamUrl || !isLive || !videoRef.current) {
+      return;
+    }
 
-    // Cleanup function to handle component unmounting
-    let cleanupHls: (() => void) | null = null;
+    // Declare cleanup function
+    let cleanup = () => {};
 
-    // Function to start playback
-    const startPlayback = () => {
+    // Simple function to initialize video playback
+    const initializeVideo = () => {
       if (!videoRef.current || !streamUrl) return;
       
-      if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS support (Safari)
+      // For Safari - Native HLS support
+      if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
         videoRef.current.src = streamUrl;
         videoRef.current.addEventListener('loadedmetadata', () => {
+          setIsLoading(false);
           videoRef.current?.play().catch(error => {
-            console.error("Error attempting to play video:", error);
+            console.error("Safari: Error playing video:", error);
           });
         });
-      } else {
-        // For browsers without native HLS support, dynamically load HLS.js from CDN
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
-        script.async = true;
-        
-        script.onload = () => {
-          setHlsLoaded(true);
-          
-          if (window.Hls && window.Hls.isSupported() && videoRef.current) {
+        return;
+      }
+
+      // For other browsers - Use HLS.js
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+      script.async = true;
+      
+      script.onload = () => {
+        // Check if window.Hls exists and is supported
+        if (window.Hls && window.Hls.isSupported && window.Hls.isSupported() && videoRef.current) {
+          try {
             const hls = new window.Hls();
             hls.loadSource(streamUrl);
             hls.attachMedia(videoRef.current);
             
             hls.on('manifestParsed', () => {
-              videoRef.current?.play().catch(error => {
-                console.error("Error attempting to play video:", error);
-              });
+              setIsLoading(false);
+              videoRef.current?.play().catch(e => console.error("HLS: Error playing video:", e));
             });
             
-            // Set cleanup function
-            cleanupHls = () => {
-              hls.destroy();
-              if (document.body.contains(script)) {
-                document.body.removeChild(script);
+            // Add error handling
+            hls.on('error', (event: any, data: any) => {
+              console.error("HLS error:", data);
+              if (data.fatal) {
+                hls.destroy();
               }
+            });
+            
+            // Setup cleanup
+            cleanup = () => {
+              hls.destroy();
+              document.body.removeChild(script);
             };
+          } catch (error) {
+            console.error("Error initializing HLS:", error);
+            setIsLoading(false);
           }
-        };
-        
-        script.onerror = (err) => {
-          console.error("Error loading HLS.js:", err);
-          setHlsLoaded(false);
-        };
-        
-        document.body.appendChild(script);
-      }
+        } else {
+          // Fallback for unsupported browsers
+          if (videoRef.current) {
+            try {
+              videoRef.current.src = streamUrl;
+              videoRef.current.play().catch(e => console.error("Fallback: Error playing video:", e));
+              setIsLoading(false);
+            } catch (error) {
+              console.error("Fallback video error:", error);
+              setIsLoading(false);
+            }
+          }
+        }
+      };
+      
+      script.onerror = () => {
+        console.error("Failed to load HLS.js library");
+        setIsLoading(false);
+      };
+      
+      document.body.appendChild(script);
     };
 
     // Start playback
-    startPlayback();
-
-    // Cleanup on component unmount
+    initializeVideo();
+    
+    // Clean up
     return () => {
-      if (cleanupHls) cleanupHls();
+      cleanup();
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = '';
+        videoRef.current.load();
+      }
     };
   }, [streamUrl, isLive]);
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-black crt-effect border border-stream-border">
-      {/* Real video stream */}
-      {isLive && streamUrl ? (
-        <video 
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          controls={false}
-          playsInline
-          muted
-        />
-      ) : (
+      {/* Video element */}
+      <video 
+        ref={videoRef}
+        className="absolute inset-0 w-full h-full object-cover"
+        controls={false}
+        playsInline
+        muted
+        style={{ display: isLive && streamUrl ? 'block' : 'none' }}
+      />
+      
+      {/* Loading or offline state */}
+      {(!isLive || !streamUrl || isLoading) && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-full h-full bg-black">
-            {/* Live stream video placeholder */}
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-stream-panel to-black">
               <div className="text-3xl font-bold text-white animate-pulse">
                 {isLive ? "CONNECTING..." : "OFFLINE"}
@@ -119,7 +153,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
         <span className="text-neon-green text-sm font-bold">{targetText}</span>
       </div>
 
-      {/* Live indicator on left only */}
+      {/* Live indicator */}
       {isLive && (
         <div className="absolute top-4 left-4 bg-neon-red/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-neon-red animate-pulse">
           <span className="font-bold text-white flex items-center gap-2">
