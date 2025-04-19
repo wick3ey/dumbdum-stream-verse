@@ -9,6 +9,8 @@ import VideoFeed from '@/components/VideoFeed';
 import ViewerCount from '@/components/ViewerCount';
 import ChallengesDashboard from '@/components/ChallengesDashboard';
 import { useAuth } from '@/contexts/AuthContext';
+import { useViewMode } from '@/App';
+import ViewModeToggle from '@/components/ViewModeToggle';
 import { 
   getActiveChallenge,
   getRequestedChallenges,
@@ -63,6 +65,7 @@ const DEMO_CHANNEL_ID = "00000000-0000-0000-0000-000000000000";
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { viewMode } = useViewMode();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentAmount, setCurrentAmount] = useState(0);
@@ -105,17 +108,18 @@ const Index = () => {
     return newColor;
   });
 
+  // Determine if the current user is a creator based on viewMode and localStorage
   useEffect(() => {
     if (user) {
-      const creatorId = localStorage.getItem('creatorId');
-      if (!creatorId) {
-        localStorage.setItem('creatorId', user.id);
+      if (viewMode === "creator") {
         setIsCreator(true);
+        localStorage.setItem('creatorId', user.id);
       } else {
-        setIsCreator(user.id === creatorId);
+        const creatorId = localStorage.getItem('creatorId');
+        setIsCreator(creatorId === user.id);
       }
     }
-  }, [user]);
+  }, [user, viewMode]);
 
   useEffect(() => {
     const fetchActiveChallenge = async () => {
@@ -541,8 +545,8 @@ const Index = () => {
       <header className="border-b border-stream-border p-4 flex items-center justify-between bg-stream-panel/50 backdrop-blur-sm">
         <DumDummiesLogo />
         <div className="flex items-center gap-4">
-          <button className="bg-neon-red text-white px-3 py-1 text-sm font-bold rounded animate-pulse">
-            LIVE
+          <button className={`${viewMode === "creator" ? "bg-neon-red" : "bg-neon-cyan"} text-white px-3 py-1 text-sm font-bold rounded animate-pulse`}>
+            {viewMode === "creator" ? "STREAMING MODE" : "LIVE"}
           </button>
           
           <div className="hidden md:block">
@@ -552,6 +556,8 @@ const Index = () => {
               className="bg-stream-panel border border-stream-border text-white placeholder-gray-500 px-3 py-1 rounded focus:outline-none focus:border-neon-cyan"
             />
           </div>
+          
+          <ViewModeToggle />
           
           {user && (
             <div className="flex items-center gap-2">
@@ -576,6 +582,12 @@ const Index = () => {
               targetReached={targetReached} 
               targetText={targetReached ? "TARGET REACHED!" : challengeName} 
             />
+            
+            {viewMode === "creator" && (
+              <div className="absolute top-4 right-4 bg-neon-red/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-neon-red animate-pulse">
+                <span className="font-bold text-white">CREATOR MODE</span>
+              </div>
+            )}
           </div>
           
           <ChallengesDashboard 
@@ -585,7 +597,7 @@ const Index = () => {
             onApproveChallenge={handleApproveChallenge}
             onRejectChallenge={handleRejectChallenge}
             onCreateChallenge={handleCreateChallenge}
-            isCreator={isCreator}
+            isCreator={viewMode === "creator" || isCreator}
           />
           
           <div className="flex items-center justify-between bg-stream-panel p-4 border border-stream-border rounded-lg">
@@ -596,11 +608,21 @@ const Index = () => {
               <span className="text-neon-green font-bold">{challengeName}</span>
             </div>
             
-            <div className="flex items-center gap-2">
-              <DonateButton amount={5} onDonate={handleDonateAdapter} />
-              <DonateButton amount={10} onDonate={handleDonateAdapter} />
-              <DonateButton amount={20} onDonate={handleDonateAdapter} />
-            </div>
+            {viewMode !== "creator" && (
+              <div className="flex items-center gap-2">
+                <DonateButton amount={5} onDonate={handleDonateAdapter} />
+                <DonateButton amount={10} onDonate={handleDonateAdapter} />
+                <DonateButton amount={20} onDonate={handleDonateAdapter} />
+              </div>
+            )}
+            
+            {viewMode === "creator" && (
+              <div className="flex items-center gap-2">
+                <button className="bg-neon-red text-white px-4 py-2 rounded-md font-bold hover:bg-red-600 transition">
+                  START STREAM
+                </button>
+              </div>
+            )}
           </div>
         </div>
         
