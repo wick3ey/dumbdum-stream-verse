@@ -8,29 +8,20 @@ type VideoFeedProps = {
   isLive: boolean;
 };
 
-// Define a simplified interface for HLS.js
-interface HlsInstance {
-  loadSource(url: string): void;
-  attachMedia(video: HTMLVideoElement): void;
-  on(event: string, callback: () => void): void;
-  destroy(): void;
-}
-
 const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, streamUrl, isLive }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [hlsInstance, setHlsInstance] = useState<HlsInstance | null>(null);
+  const [hlsLoaded, setHlsLoaded] = useState(false);
 
   useEffect(() => {
     if (!streamUrl || !isLive || !videoRef.current) return;
 
-    // Clean up any existing HLS instance
-    if (hlsInstance) {
-      hlsInstance.destroy();
-      setHlsInstance(null);
-    }
+    // Cleanup function to handle component unmounting
+    let cleanupHls: (() => void) | null = null;
 
-    // Load video source dynamically
-    try {
+    // Function to start playback
+    const startPlayback = () => {
+      if (!videoRef.current || !streamUrl) return;
+      
       if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
         // Native HLS support (Safari)
         videoRef.current.src = streamUrl;
@@ -46,42 +37,46 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
         script.async = true;
         
         script.onload = () => {
-          // The window.Hls object should be available after script loads
+          setHlsLoaded(true);
+          
           if (window.Hls && window.Hls.isSupported() && videoRef.current) {
             const hls = new window.Hls();
             hls.loadSource(streamUrl);
             hls.attachMedia(videoRef.current);
+            
             hls.on('manifestParsed', () => {
               videoRef.current?.play().catch(error => {
                 console.error("Error attempting to play video:", error);
               });
             });
-            setHlsInstance(hls);
+            
+            // Set cleanup function
+            cleanupHls = () => {
+              hls.destroy();
+              if (document.body.contains(script)) {
+                document.body.removeChild(script);
+              }
+            };
           }
         };
         
         script.onerror = (err) => {
           console.error("Error loading HLS.js:", err);
+          setHlsLoaded(false);
         };
         
         document.body.appendChild(script);
-        
-        return () => {
-          if (document.body.contains(script)) {
-            document.body.removeChild(script);
-          }
-        };
-      }
-    } catch (error) {
-      console.error("Error setting up video playback:", error);
-    }
-
-    return () => {
-      if (hlsInstance) {
-        hlsInstance.destroy();
       }
     };
-  }, [streamUrl, isLive, hlsInstance]);
+
+    // Start playback
+    startPlayback();
+
+    // Cleanup on component unmount
+    return () => {
+      if (cleanupHls) cleanupHls();
+    };
+  }, [streamUrl, isLive]);
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-black crt-effect border border-stream-border">
@@ -141,16 +136,3 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
 };
 
 export default VideoFeed;
-
-// Add TypeScript declaration for the global Hls object
-declare global {
-  interface Window {
-    Hls: {
-      new(): HlsInstance;
-      isSupported(): boolean;
-      Events: {
-        MANIFEST_PARSED: string;
-      };
-    };
-  }
-}
