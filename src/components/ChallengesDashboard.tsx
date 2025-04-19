@@ -12,7 +12,8 @@ import {
   Flame,
   AlertCircle,
   Zap,
-  Skull
+  Skull,
+  X
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
