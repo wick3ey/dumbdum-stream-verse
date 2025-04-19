@@ -1,24 +1,69 @@
-import React from 'react';
+
+import React, { useRef, useEffect } from 'react';
+import Hls from 'hls.js';
 
 type VideoFeedProps = {
   targetReached: boolean;
   targetText: string;
+  streamUrl?: string;
+  isLive: boolean;
 };
 
-const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText }) => {
+const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, streamUrl, isLive }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (!streamUrl || !isLive || !videoRef.current) return;
+
+    // Initialize HLS if it's supported
+    if (Hls.isSupported() && streamUrl) {
+      const hls = new Hls();
+      hls.loadSource(streamUrl);
+      hls.attachMedia(videoRef.current);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        videoRef.current?.play().catch(error => {
+          console.error("Error attempting to play video:", error);
+        });
+      });
+
+      return () => {
+        hls.destroy();
+      };
+    } 
+    // Use native HLS support if available (Safari)
+    else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+      videoRef.current.src = streamUrl;
+      videoRef.current.addEventListener('loadedmetadata', () => {
+        videoRef.current?.play().catch(error => {
+          console.error("Error attempting to play video:", error);
+        });
+      });
+    }
+  }, [streamUrl, isLive]);
+
   return (
     <div className="relative w-full h-full overflow-hidden bg-black crt-effect border border-stream-border">
-      {/* Video content (placeholder) */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-full h-full bg-black">
-          {/* Live stream video placeholder */}
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-stream-panel to-black">
-            <div className="text-3xl font-bold text-white animate-pulse">
-              LIVE STREAM
+      {/* Real video stream */}
+      {isLive && streamUrl ? (
+        <video 
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          controls={false}
+          playsInline
+          muted
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-full h-full bg-black">
+            {/* Live stream video placeholder */}
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-stream-panel to-black">
+              <div className="text-3xl font-bold text-white animate-pulse">
+                {isLive ? "CONNECTING..." : "OFFLINE"}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Target reached overlay */}
       {targetReached && (
@@ -36,6 +81,16 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText }) => {
       <div className="absolute bottom-4 left-4 bg-stream-panel bg-opacity-80 px-3 py-1 rounded">
         <span className="text-neon-green text-sm font-bold">{targetText}</span>
       </div>
+
+      {/* Live indicator on left (only show one) */}
+      {isLive && (
+        <div className="absolute top-4 left-4 bg-neon-red/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-neon-red animate-pulse">
+          <span className="font-bold text-white flex items-center gap-2">
+            <span className="h-3 w-3 bg-white rounded-full animate-pulse"></span>
+            LIVE
+          </span>
+        </div>
+      )}
 
       {/* Scanlines overlay */}
       <div className="scanlines"></div>

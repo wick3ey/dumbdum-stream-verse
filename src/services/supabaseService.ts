@@ -6,6 +6,7 @@ export type Channel = Database['public']['Tables']['channels']['Row'];
 export type ChatMessage = Database['public']['Tables']['chat_messages']['Row'];
 export type Donation = Database['public']['Tables']['donations']['Row'];
 export type Challenge = Database['public']['Tables']['challenges']['Row'];
+export type StreamSession = Database['public']['Tables']['stream_sessions']['Row'];
 
 // Profile services
 export const getProfile = async (userId: string) => {
@@ -66,9 +67,18 @@ export const createChannel = async (channel: { title: string; description?: stri
 
 export const updateViewerCount = async (channelId: string, change: number) => {
   console.log(`Updating viewer count for channel ${channelId} by ${change}`);
-  // This would call a server function in a real implementation
-  // For the demo, we'll keep the mock
-  return { success: true };
+  
+  try {
+    // Call the Supabase function to update viewer count
+    await supabase.rpc('update_viewer_count', { 
+      channel_uuid: channelId, 
+      count_change: change 
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating viewer count:', error);
+    return { success: false };
+  }
 };
 
 // Chat services
@@ -348,4 +358,152 @@ export const subscribeToChallenge = (channelId: string, callback: (challenge: an
   return () => {
     supabase.removeChannel(channel);
   };
+};
+
+// Stream services
+export const createStreamSession = async (channelId: string, title: string, description?: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('stream_sessions')
+      .insert([{
+        channel_id: channelId,
+        title,
+        description,
+        is_active: false
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as StreamSession;
+  } catch (error) {
+    console.error("Error creating stream session:", error);
+    throw error;
+  }
+};
+
+export const getStreamSessionForChannel = async (channelId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('stream_sessions')
+      .select('*')
+      .eq('channel_id', channelId)
+      .order('created_at', { ascending: false })
+      .maybeSingle();
+
+    if (error) throw error;
+    return data as StreamSession | null;
+  } catch (error) {
+    console.error("Error fetching stream session:", error);
+    throw error;
+  }
+};
+
+export const startStream = async (sessionId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('stream_sessions')
+      .update({
+        is_active: true,
+        started_at: new Date().toISOString(),
+        ended_at: null
+      })
+      .eq('id', sessionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    // Also update the channel status
+    const session = data as StreamSession;
+    await supabase
+      .from('channels')
+      .update({
+        is_live: true
+      })
+      .eq('id', session.channel_id);
+      
+    return session;
+  } catch (error) {
+    console.error("Error starting stream:", error);
+    throw error;
+  }
+};
+
+export const endStream = async (sessionId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('stream_sessions')
+      .update({
+        is_active: false,
+        ended_at: new Date().toISOString()
+      })
+      .eq('id', sessionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    // Also update the channel status
+    const session = data as StreamSession;
+    await supabase
+      .from('channels')
+      .update({
+        is_live: false
+      })
+      .eq('id', session.channel_id);
+      
+    return session;
+  } catch (error) {
+    console.error("Error ending stream:", error);
+    throw error;
+  }
+};
+
+export const subscribeToStreamSessions = (channelId: string, callback: (streamSession: any) => void) => {
+  const channel = supabase
+    .channel('public:stream_sessions')
+    .on('postgres_changes', 
+      { 
+        event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+        schema: 'public', 
+        table: 'stream_sessions',
+        filter: `channel_id=eq.${channelId}`
+      }, 
+      (payload) => {
+        if (payload.new) {
+          callback(payload.new);
+        }
+      }
+    )
+    .subscribe();
+
+  // Return unsubscribe function
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
+// Get stream key for channel owner
+export const getStreamKey = async (sessionId: string, userId: string) => {
+  try {
+    // First verify the user owns this session's channel
+    const { data: session, error: sessionError } = await supabase
+      .from('stream_sessions')
+      .select('*, channels!inner(owner_id)')
+      .eq('id', sessionId)
+      .single();
+      
+    if (sessionError) throw sessionError;
+    
+    // Security check: Verify the user is the channel owner
+    if (session.channels.owner_id !== userId) {
+      throw new Error("Unauthorized access to stream key");
+    }
+    
+    return session.stream_key;
+  } catch (error) {
+    console.error("Error getting stream key:", error);
+    throw error;
+  }
 };

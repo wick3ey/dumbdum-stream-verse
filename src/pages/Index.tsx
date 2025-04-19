@@ -22,11 +22,18 @@ import {
   updateViewerCount,
   createChallenge,
   approveChallenge,
-  rejectChallenge
+  rejectChallenge,
+  createStreamSession,
+  getStreamSessionForChannel,
+  startStream,
+  endStream,
+  subscribeToStreamSessions,
+  getStreamKey
 } from '@/services/supabaseService';
 import { enforceCreatorSecurity, logSecurityViolation, verifyCreatorAccess } from '@/services/securityService';
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
+import StreamControls from '@/components/StreamControls';
 
 export type Message = {
   id: number | string;
@@ -47,6 +54,17 @@ export type Challenge = {
   currentAmount: number;
   status: 'requested' | 'active' | 'completed';
   userId?: string;
+};
+
+export type StreamInfo = {
+  id: string;
+  title: string;
+  description?: string;
+  streamKey?: string;
+  streamUrl?: string;
+  isActive: boolean;
+  startedAt?: string;
+  endedAt?: string;
 };
 
 const EMOJIS = ['😈', '👹', '👽', '🤖', '👻', '💀', '🤡', '👺', '😠', '🤯', '🥴', '🤪'];
@@ -79,7 +97,9 @@ const Index = () => {
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
   const [requestedChallenges, setRequestedChallenges] = useState<Challenge[]>([]);
   const [isStreamLive, setIsStreamLive] = useState(false);
-
+  const [streamSession, setStreamSession] = useState<StreamInfo | null>(null);
+  const [showStreamSettings, setShowStreamSettings] = useState(false);
+  
   const [userAvatarColor] = useState(() => {
     const storedColor = localStorage.getItem('userAvatarColor');
     if (storedColor && AVATAR_COLORS.includes(storedColor)) {
@@ -177,10 +197,50 @@ const Index = () => {
         console.error('Error fetching requested challenges:', error);
       }
     };
+    
+    const fetchStreamSession = async () => {
+      if (isCurrentUserCreator()) {
+        try {
+          const session = await getStreamSessionForChannel(DEMO_CHANNEL_ID);
+          
+          if (session) {
+            setStreamSession({
+              id: session.id,
+              title: session.title,
+              description: session.description || undefined,
+              isActive: session.is_active || false,
+              streamUrl: session.stream_url || undefined,
+              startedAt: session.started_at || undefined,
+              endedAt: session.ended_at || undefined
+            });
+            
+            setIsStreamLive(session.is_active || false);
+          } else if (user) {
+            // Create default stream session for channel if none exists
+            const newSession = await createStreamSession(
+              DEMO_CHANNEL_ID, 
+              "My Extreme Challenge Stream", 
+              "Watch and donate as I complete extreme challenges!"
+            );
+            
+            setStreamSession({
+              id: newSession.id,
+              title: newSession.title,
+              description: newSession.description || undefined,
+              isActive: newSession.is_active || false,
+              streamUrl: newSession.stream_url || undefined
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching stream session:', error);
+        }
+      }
+    };
 
     fetchActiveChallenge();
     fetchRequestedChallenges();
-  }, []);
+    fetchStreamSession();
+  }, [isCurrentUserCreator, user]);
 
   useEffect(() => {
     updateViewerCount(DEMO_CHANNEL_ID, 1).catch(console.error);
@@ -339,6 +399,50 @@ const Index = () => {
         }
       }
     });
+    
+    const unsubscribeStreams = subscribeToStreamSessions(DEMO_CHANNEL_ID, (updatedStream) => {
+      if (updatedStream) {
+        setStreamSession({
+          id: updatedStream.id,
+          title: updatedStream.title,
+          description: updatedStream.description || undefined,
+          isActive: updatedStream.is_active || false,
+          streamUrl: updatedStream.stream_url || undefined,
+          startedAt: updatedStream.started_at || undefined,
+          endedAt: updatedStream.ended_at || undefined
+        });
+        
+        setIsStreamLive(updatedStream.is_active || false);
+        
+        if (updatedStream.is_active && !isStreamLive) {
+          const systemMessage: Message = {
+            id: Date.now(),
+            username: 'SYSTEM',
+            message: 'STREAM STARTED',
+            emoji: '🎬',
+            type: 'chat',
+            avatarColor: 'bg-neon-red',
+            usernameColor: 'text-neon-red',
+            messageColor: 'text-neon-yellow'
+          };
+          
+          setMessages(prev => [...prev.slice(-49), systemMessage]);
+        } else if (!updatedStream.is_active && isStreamLive) {
+          const systemMessage: Message = {
+            id: Date.now(),
+            username: 'SYSTEM',
+            message: 'STREAM ENDED',
+            emoji: '🛑',
+            type: 'chat',
+            avatarColor: 'bg-neon-red',
+            usernameColor: 'text-neon-red',
+            messageColor: 'text-neon-yellow'
+          };
+          
+          setMessages(prev => [...prev.slice(-49), systemMessage]);
+        }
+      }
+    });
 
     const viewerInterval = setInterval(() => {
       setViewers(prev => {
@@ -351,11 +455,12 @@ const Index = () => {
       unsubscribeChat();
       unsubscribeDonations();
       unsubscribeChallenge();
+      unsubscribeStreams();
       clearInterval(viewerInterval);
       
       updateViewerCount(DEMO_CHANNEL_ID, -1).catch(console.error);
     };
-  }, [challengeName, targetReached, uiToast, targetAmount, activeChallenges]);
+  }, [challengeName, targetReached, uiToast, targetAmount, activeChallenges, isStreamLive]);
 
   const handleSendMessage = async (message: string) => {
     if (!user) return;
@@ -570,34 +675,55 @@ const Index = () => {
     }
   };
 
-  const toggleStreamLive = () => {
-    if (!user) return;
+  const toggleStreamLive = async () => {
+    if (!user || !streamSession) return;
     
     // Security check - verify user is the creator
     if (!enforceCreatorSecurity(user.id, "Toggle Stream Status")) {
       return;
     }
     
-    setIsStreamLive(prev => !prev);
-    
-    const systemMessage: Message = {
-      id: Date.now(),
-      username: 'SYSTEM',
-      message: isStreamLive ? 'STREAM ENDED' : 'STREAM STARTED',
-      emoji: isStreamLive ? '🛑' : '🎬',
-      type: 'chat',
-      avatarColor: 'bg-neon-red',
-      usernameColor: 'text-neon-red',
-      messageColor: 'text-neon-yellow'
-    };
-    
-    setMessages(prev => [...prev.slice(-49), systemMessage]);
-    
-    uiToast({
-      title: isStreamLive ? "Stream Ended" : "Stream Started",
-      description: isStreamLive ? "The live stream has ended" : "The live stream has started",
-      variant: "default",
-    });
+    try {
+      if (!isStreamLive) {
+        // Start stream
+        await startStream(streamSession.id);
+        
+        // In a real implementation, this is where you'd provide stream details to the user
+        if (isCurrentUserCreator()) {
+          try {
+            const streamKey = await getStreamKey(streamSession.id, user.id);
+            
+            // Update stream key for user
+            setStreamSession(prev => prev ? {
+              ...prev,
+              streamKey
+            } : null);
+            
+            uiToast({
+              title: "Stream Started",
+              description: "Your stream is now live. Use your streaming software with the provided stream key.",
+            });
+          } catch (error) {
+            console.error('Error getting stream key:', error);
+          }
+        }
+      } else {
+        // End stream
+        await endStream(streamSession.id);
+        
+        uiToast({
+          title: "Stream Ended",
+          description: "Your live stream has ended",
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling stream:', error);
+      uiToast({
+        title: "Error",
+        description: "Failed to toggle stream status",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -642,24 +768,20 @@ const Index = () => {
           <div className="relative aspect-video">
             <VideoFeed 
               targetReached={targetReached} 
-              targetText={targetReached ? "TARGET REACHED!" : challengeName} 
+              targetText={targetReached ? "TARGET REACHED!" : challengeName}
+              streamUrl={streamSession?.streamUrl} 
+              isLive={isStreamLive}
             />
-            
-            {viewMode === "creator" && (
-              <div className="absolute top-4 right-4 bg-neon-red/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-neon-red animate-pulse">
-                <span className="font-bold text-white">CREATOR MODE</span>
-              </div>
-            )}
-            
-            {isStreamLive && (
-              <div className="absolute top-4 left-4 bg-neon-red/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-neon-red animate-pulse">
-                <span className="font-bold text-white flex items-center gap-2">
-                  <span className="h-3 w-3 bg-white rounded-full animate-pulse"></span>
-                  LIVE
-                </span>
-              </div>
-            )}
           </div>
+          
+          {viewMode === "creator" && isCurrentUserCreator() && (
+            <StreamControls
+              isLive={isStreamLive}
+              onToggleStream={toggleStreamLive}
+              streamKey={streamSession?.streamKey}
+              streamInfo={streamSession}
+            />
+          )}
           
           <ChallengesDashboard 
             activeChallenges={activeChallenges}
@@ -684,21 +806,6 @@ const Index = () => {
                 <DonateButton amount={5} onDonate={handleDonateAdapter} />
                 <DonateButton amount={10} onDonate={handleDonateAdapter} />
                 <DonateButton amount={20} onDonate={handleDonateAdapter} />
-              </div>
-            )}
-            
-            {viewMode === "creator" && isCurrentUserCreator() && (
-              <div className="flex items-center gap-2">
-                <button 
-                  className={`${
-                    isStreamLive 
-                      ? "bg-red-700 hover:bg-red-800" 
-                      : "bg-neon-red hover:bg-red-600"
-                  } text-white px-4 py-2 rounded-md font-bold transition`}
-                  onClick={toggleStreamLive}
-                >
-                  {isStreamLive ? "END STREAM" : "START STREAM"}
-                </button>
               </div>
             )}
           </div>

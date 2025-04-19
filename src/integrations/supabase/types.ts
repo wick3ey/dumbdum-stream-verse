@@ -183,11 +183,65 @@ export type Database = {
         }
         Relationships: []
       }
+      stream_sessions: {
+        Row: {
+          channel_id: string
+          created_at: string
+          description: string | null
+          ended_at: string | null
+          id: string
+          is_active: boolean | null
+          started_at: string | null
+          stream_key: string
+          stream_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          started_at?: string | null
+          stream_key: string
+          stream_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          started_at?: string | null
+          stream_key?: string
+          stream_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_sessions_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      generate_stream_key: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       update_viewer_count: {
         Args: { channel_uuid: string; count_change: number }
         Returns: undefined
