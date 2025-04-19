@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Send, X, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { createChallenge } from '@/services/supabaseService';
 
 type ChatPanelProps = {
   messages: Message[];
@@ -15,6 +17,7 @@ type ChatPanelProps = {
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreateChallenge }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [inputValue, setInputValue] = useState('');
   const [showChallengeModal, setShowChallengeModal] = useState(false);
   const [customChallenge, setCustomChallenge] = useState('');
@@ -50,10 +53,52 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
     }
   };
 
-  const handleChallengeSubmit = (challengeName: string) => {
-    onCreateChallenge(challengeName);
-    setShowChallengeModal(false);
-    setCustomChallenge('');
+  const handleChallengeSubmit = async (challengeName: string) => {
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "You must be logged in to request a challenge",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!challengeName.trim()) {
+      toast({
+        title: "Challenge required",
+        description: "Please enter a challenge name",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Submit the challenge to the database
+      await createChallenge({
+        channel_id: "00000000-0000-0000-0000-000000000000", // Using demo channel ID
+        name: challengeName.toUpperCase(),
+        user_id: user.id
+      });
+      
+      // Notify parent component
+      onCreateChallenge(challengeName);
+      
+      // Close modal and reset state
+      setShowChallengeModal(false);
+      setCustomChallenge('');
+      
+      toast({
+        title: "Challenge Requested",
+        description: `Your challenge "${challengeName.toUpperCase()}" has been submitted for approval`,
+      });
+    } catch (error: any) {
+      console.error('Error creating challenge:', error);
+      toast({
+        title: "Request failed",
+        description: error.message || "Failed to submit your challenge request",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -120,12 +165,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onCreate
                 {extremeChallenges.map((challenge, index) => (
                   <div
                     key={index}
-                    className={`
-                      opacity-0 translate-y-1
-                      animate-fade-in
-                      [animation-delay:${index * 50}ms]
-                      [animation-fill-mode:forwards]
-                    `}
+                    className="animate-fade-in-up"
+                    style={{ 
+                      animationDelay: `${index * 50}ms`,
+                      animationFillMode: 'forwards',
+                      opacity: 0,
+                      transform: 'translateY(10px)'
+                    }}
                   >
                     <button
                       onClick={() => handleChallengeSubmit(challenge)}

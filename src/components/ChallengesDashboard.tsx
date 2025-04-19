@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
@@ -7,8 +8,6 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   XCircle,
-  ChevronDown,
-  ChevronUp,
   Clock,
   ThumbsUp,
   Flame,
@@ -21,12 +20,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/lib/utils';
+import { createChallenge } from '@/services/supabaseService';
 
 type Challenge = {
   id: string;
@@ -62,9 +61,9 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [targetAmount, setTargetAmount] = useState<string>('20');
   const [selectedRequestedChallenge, setSelectedRequestedChallenge] = useState<Challenge | null>(null);
-  const [showRequestedSection, setShowRequestedSection] = useState(true);
   const [showChallengeModal, setShowChallengeModal] = useState(false);
-
+  const [challengeName, setChallengeName] = useState('');
+  
   const handleChallengeSelect = (challenge: Challenge) => {
     setSelectedChallenge(challenge);
   };
@@ -140,6 +139,49 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
     }
   };
 
+  const handleCreateChallenge = async () => {
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "You must be logged in to request a challenge",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!challengeName.trim()) {
+      toast({
+        title: "Challenge required",
+        description: "Please enter a challenge name",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      await createChallenge({
+        channel_id: "00000000-0000-0000-0000-000000000000",
+        name: challengeName.toUpperCase(),
+        user_id: user.id
+      });
+      
+      setShowChallengeModal(false);
+      setChallengeName('');
+      
+      toast({
+        title: "Challenge Requested",
+        description: `Your challenge "${challengeName.toUpperCase()}" has been submitted for approval`,
+      });
+    } catch (error: any) {
+      console.error('Error creating challenge:', error);
+      toast({
+        title: "Request failed",
+        description: error.message || "Failed to submit your challenge request",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="w-full bg-stream-panel p-4 border border-stream-border rounded-lg">
       <Tabs defaultValue="active" className="w-full">
@@ -179,12 +221,13 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
               return (
                 <div
                   key={challenge.id}
-                  className={`
-                    opacity-0 translate-y-2
-                    animate-fade-in
-                    [animation-delay:${index * 50}ms]
-                    [animation-fill-mode:forwards]
-                  `}
+                  className="animate-fade-in-up"
+                  style={{ 
+                    animationDelay: `${index * 50}ms`,
+                    animationFillMode: 'forwards',
+                    opacity: 0,
+                    transform: 'translateY(10px)'
+                  }}
                 >
                   <Card 
                     className={`${
@@ -234,9 +277,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
           </div>
 
           {activeChallenges.length > 0 && (
-            <div 
-              className="mt-4 flex justify-center gap-2 opacity-0 animate-fade-in [animation-delay:200ms] [animation-fill-mode:forwards]"
-            >
+            <div className="mt-4 flex justify-center gap-2 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
               <Button
                 onClick={() => setShowDonateDialog(true)}
                 disabled={!selectedChallenge}
@@ -248,9 +289,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
           )}
 
           {activeChallenges.length === 0 && (
-            <div 
-              className="text-center p-8 text-gray-400 opacity-0 animate-fade-in [animation-fill-mode:forwards]"
-            >
+            <div className="text-center p-8 text-gray-400 animate-fade-in-up">
               <AlertTriangle className="mx-auto h-12 w-12 text-neon-orange mb-4 opacity-70" />
               <h3 className="text-lg font-medium text-neon-orange">No Active Challenges</h3>
               <p className="mt-2">There are currently no active challenges to donate to.</p>
@@ -263,12 +302,13 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
             {requestedChallenges.map((challenge, index) => (
               <div 
                 key={challenge.id}
-                className={`
-                  opacity-0 translate-y-2
-                  animate-fade-in
-                  [animation-delay:${index * 50}ms]
-                  [animation-fill-mode:forwards]
-                `}
+                className="animate-fade-in-up"
+                style={{ 
+                  animationDelay: `${index * 50}ms`,
+                  animationFillMode: 'forwards',
+                  opacity: 0,
+                  transform: 'translateY(10px)'
+                }}
               >
                 <Card 
                   className={`${
@@ -297,6 +337,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                       </div>
                     </div>
                     
+                    {/* Only show approve/reject buttons if user is the creator */}
                     {isCreator && (
                       <div className="flex items-center justify-end gap-2 mt-3">
                         <Button 
@@ -331,9 +372,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
           </div>
 
           {requestedChallenges.length === 0 && (
-            <div 
-              className="text-center p-8 text-gray-400 opacity-0 animate-fade-in [animation-fill-mode:forwards]"
-            >
+            <div className="text-center p-8 text-gray-400 animate-fade-in-up">
               <ThumbsUp className="mx-auto h-12 w-12 text-neon-yellow mb-4 opacity-70" />
               <h3 className="text-lg font-medium text-neon-yellow">No Pending Requests</h3>
               <p className="mt-2">There are no challenge requests pending approval.</p>
@@ -459,11 +498,13 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
 
       {/* Request Challenge Modal */}
       <Dialog open={showChallengeModal} onOpenChange={setShowChallengeModal}>
-        <DialogContent className="bg-stream-darker border-stream-border">
+        <DialogContent className="bg-stream-darker border-stream-border shadow-glow-red">
           <DialogHeader>
-            <DialogTitle className="text-neon-red">Request Extreme Challenge</DialogTitle>
+            <DialogTitle className="text-neon-red flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" /> Request Extreme Challenge
+            </DialogTitle>
             <DialogDescription className="text-gray-400">
-              Please fill out the form below to request an extreme challenge.
+              Submit your extreme challenge for the streamer to perform
             </DialogDescription>
           </DialogHeader>
           
@@ -472,38 +513,31 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
               <label className="text-sm text-gray-400">Challenge Name:</label>
               <Input
                 type="text"
-                placeholder="Enter challenge name"
-                className="bg-stream-panel border-stream-border text-white"
+                placeholder="Enter a challenge name (e.g., EAT GHOST PEPPER)"
+                className="bg-stream-panel border-stream-border text-white focus:border-neon-red focus:ring-neon-red"
+                value={challengeName}
+                onChange={(e) => setChallengeName(e.target.value)}
               />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Target Amount ($):</label>
-              <Input
-                type="number"
-                placeholder="Enter target amount"
-                className="bg-stream-panel border-stream-border text-white"
-                min="1"
-                step="5"
-              />
+              <span className="text-xs text-gray-500">Be creative but remember all challenges must be approved by the streamer</span>
             </div>
             
             <div className="pt-4 flex justify-end space-x-2">
               <Button
-                onClick={() => setShowChallengeModal(false)}
+                onClick={() => {
+                  setShowChallengeModal(false);
+                  setChallengeName('');
+                }}
                 variant="outline"
                 className="border-stream-border text-gray-300"
               >
                 Cancel
               </Button>
               <Button
-                onClick={() => {
-                  setShowChallengeModal(false);
-                  // Handle request logic here
-                }}
-                className="bg-green-700 hover:bg-green-600"
+                onClick={handleCreateChallenge}
+                disabled={!challengeName.trim()}
+                className="bg-gradient-to-r from-red-700 to-neon-red text-white hover:from-neon-red hover:to-red-700 disabled:opacity-50"
               >
-                <CheckCircle2 className="h-4 w-4 mr-1" /> Request Challenge
+                Submit Challenge
               </Button>
             </div>
           </div>

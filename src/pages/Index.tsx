@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatPanel from '@/components/ChatPanel';
@@ -23,7 +24,6 @@ import {
   rejectChallenge
 } from '@/services/supabaseService';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 export type Message = {
   id: number | string;
@@ -72,18 +72,9 @@ const Index = () => {
   const [viewers, setViewers] = useState(30);
   const [targetReached, setTargetReached] = useState(false);
   
-  const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([
-    {
-      id: "default",
-      name: challengeName,
-      targetAmount: targetAmount,
-      currentAmount: currentAmount,
-      status: 'active'
-    },
-  ]);
-  
+  const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
   const [requestedChallenges, setRequestedChallenges] = useState<Challenge[]>([]);
-  const [isCreator, setIsCreator] = useState(true);
+  const [isCreator, setIsCreator] = useState(false);
 
   const [userAvatarColor] = useState(() => {
     const storedColor = localStorage.getItem('userAvatarColor');
@@ -114,6 +105,21 @@ const Index = () => {
     localStorage.setItem('userTextColor', newColor);
     return newColor;
   });
+
+  // Determine if current user is the creator
+  useEffect(() => {
+    if (user) {
+      // In a real app, this would check the actual channel owner
+      // For demo purposes, hardcode the first user as a creator
+      const creatorId = localStorage.getItem('creatorId');
+      if (!creatorId) {
+        localStorage.setItem('creatorId', user.id);
+        setIsCreator(true);
+      } else {
+        setIsCreator(user.id === creatorId);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchActiveChallenge = async () => {
@@ -410,6 +416,8 @@ const Index = () => {
         user_id: user.id
       });
       
+      // The new challenge should arrive via the subscription,
+      // but we can add it manually as well for immediate feedback
       const newChallenge: Challenge = {
         id: `temp-${Date.now()}`,
         name: challengeName.toUpperCase(),
@@ -431,6 +439,7 @@ const Index = () => {
         usernameColor: 'text-neon-red',
         messageColor: 'text-neon-yellow'
       };
+      
       setMessages(prev => [...prev.slice(-49), systemMessage]);
       
       toast({
@@ -490,29 +499,6 @@ const Index = () => {
       handleDonate(amount, activeChallenges[0].name);
     }
   };
-
-  useEffect(() => {
-    if (requestedChallenges.length === 0) {
-      setRequestedChallenges([
-        {
-          id: 'demo-req-1',
-          name: 'EAT A GHOST PEPPER',
-          targetAmount: 0,
-          currentAmount: 0,
-          status: 'requested',
-          userId: 'demo-user-1'
-        },
-        {
-          id: 'demo-req-2',
-          name: 'SHAVE HEAD ON STREAM',
-          targetAmount: 0,
-          currentAmount: 0,
-          status: 'requested',
-          userId: 'demo-user-2'
-        }
-      ]);
-    }
-  }, [requestedChallenges]);
 
   return (
     <div className="min-h-screen bg-stream-dark text-white flex flex-col">
