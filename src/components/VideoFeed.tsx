@@ -1,5 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
+// Import type only to avoid bundling the entire library
+import type Hls from 'hls.js';
 
 type VideoFeedProps = {
   targetReached: boolean;
@@ -14,6 +16,8 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
   useEffect(() => {
     if (!streamUrl || !isLive || !videoRef.current) return;
 
+    let hls: typeof Hls | null = null;
+
     // Load video source dynamically
     try {
       if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
@@ -26,20 +30,16 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
         });
       } else {
         // For browsers without native HLS support, dynamically import hls.js
-        import('hls.js').then(({ default: Hls }) => {
-          if (Hls.isSupported() && videoRef.current) {
-            const hls = new Hls();
-            hls.loadSource(streamUrl);
+        import('hls.js').then(({ default: HlsPlayer }) => {
+          if (HlsPlayer.isSupported() && videoRef.current) {
+            hls = new HlsPlayer();
+            hls.loadSource(streamUrl!);
             hls.attachMedia(videoRef.current);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            hls.on(HlsPlayer.Events.MANIFEST_PARSED, () => {
               videoRef.current?.play().catch(error => {
                 console.error("Error attempting to play video:", error);
               });
             });
-
-            return () => {
-              hls.destroy();
-            };
           }
         }).catch(err => {
           console.error("Error loading HLS.js:", err);
@@ -48,6 +48,13 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
     } catch (error) {
       console.error("Error setting up video playback:", error);
     }
+
+    // Cleanup function
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
   }, [streamUrl, isLive]);
 
   return (
