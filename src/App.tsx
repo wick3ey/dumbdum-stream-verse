@@ -9,25 +9,29 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import { AuthProvider } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
-import { createContext, useState, useContext } from "react";
+import { createContext, useState, useContext, useEffect } from "react";
+import { useAuth } from "./contexts/AuthContext";
 
 // Create a context for the view mode
 export type ViewMode = "creator" | "viewer";
 interface ViewModeContextType {
   viewMode: ViewMode;
   toggleViewMode: () => void;
+  isCurrentUserCreator: () => boolean;
 }
 
 export const ViewModeContext = createContext<ViewModeContextType>({
   viewMode: "viewer",
   toggleViewMode: () => {},
+  isCurrentUserCreator: () => false,
 });
 
 export const useViewMode = () => useContext(ViewModeContext);
 
 const queryClient = new QueryClient();
 
-const App = () => {
+const ViewModeProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     // Try to get the saved view mode from localStorage
     const savedMode = localStorage.getItem("viewMode") as ViewMode;
@@ -40,10 +44,33 @@ const App = () => {
     localStorage.setItem("viewMode", newMode);
   };
 
+  const isCurrentUserCreator = (): boolean => {
+    if (!user) return false;
+    
+    const creatorId = localStorage.getItem('creatorId');
+    return creatorId === user.id;
+  };
+
+  // Reset to viewer mode if user is not the creator
+  useEffect(() => {
+    if (viewMode === "creator" && user && !isCurrentUserCreator()) {
+      setViewMode("viewer");
+      localStorage.setItem("viewMode", "viewer");
+    }
+  }, [user, viewMode]);
+
+  return (
+    <ViewModeContext.Provider value={{ viewMode, toggleViewMode, isCurrentUserCreator }}>
+      {children}
+    </ViewModeContext.Provider>
+  );
+};
+
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ViewModeContext.Provider value={{ viewMode, toggleViewMode }}>
+        <ViewModeProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -60,7 +87,7 @@ const App = () => {
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
-        </ViewModeContext.Provider>
+        </ViewModeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

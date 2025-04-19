@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { 
@@ -29,6 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
 import { createChallenge } from '@/services/supabaseService';
+import { useViewMode } from '@/App';
+import { toast } from 'sonner';
 
 type Challenge = {
   id: string;
@@ -60,6 +63,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { viewMode, isCurrentUserCreator } = useViewMode();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [showDonateDialog, setShowDonateDialog] = useState(false);
   const [customAmount, setCustomAmount] = useState<string>('');
@@ -68,6 +72,10 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   const [selectedRequestedChallenge, setSelectedRequestedChallenge] = useState<Challenge | null>(null);
   const [showChallengeModal, setShowChallengeModal] = useState(false);
   const [challengeName, setChallengeName] = useState('');
+  const [securityChecks, setSecurityChecks] = useState({
+    creatorVerified: false,
+    buttonDisabled: false
+  });
   
   const extremeChallenges = [
     "DRINK PISS",
@@ -83,15 +91,41 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
     "EAT RAW ANIMAL ORGAN"
   ];
 
+  // Security verification effect
+  useEffect(() => {
+    const verifyCreatorPermissions = () => {
+      const userIsCreator = isCurrentUserCreator();
+      const correctMode = viewMode === "creator";
+      
+      setSecurityChecks({
+        creatorVerified: userIsCreator && correctMode,
+        buttonDisabled: !(userIsCreator && correctMode) && isCreator
+      });
+      
+      // If someone tries to manipulate the component props directly
+      if (isCreator && !userIsCreator && correctMode) {
+        console.error("Security violation: Non-creator attempting to access creator features");
+        toast.error("You are not authorized to access creator features");
+      }
+    };
+    
+    verifyCreatorPermissions();
+  }, [viewMode, isCreator, isCurrentUserCreator]);
+
   const handleChallengeSelect = (challenge: Challenge) => {
     setSelectedChallenge(challenge);
   };
 
   const handleRequestedChallengeSelect = (challenge: Challenge) => {
     setSelectedRequestedChallenge(challenge);
-    if (isCreator) {
+    
+    // Only allow creator to open approve dialog
+    if (securityChecks.creatorVerified) {
       setShowApproveDialog(true);
       setTargetAmount('20');
+    } else if (isCreator) {
+      // If someone is trying to access creator features without permission
+      toast.error("You don't have permission to approve challenges");
     }
   };
 
@@ -123,6 +157,13 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   };
 
   const handleApproveChallenge = () => {
+    // Additional security check
+    if (!securityChecks.creatorVerified) {
+      console.error("Security violation: Non-creator attempting to approve challenge");
+      toast.error("Security violation: Unauthorized action");
+      return;
+    }
+
     const amount = parseFloat(targetAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({
@@ -138,18 +179,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
       setShowApproveDialog(false);
       setSelectedRequestedChallenge(null);
       
-      // Update requested challenges list
-      // setRequestedChallenges(prev => prev.filter(c => c.id !== selectedRequestedChallenge.id));
-      
-      // Add to active challenges
-      const newChallenge: Challenge = {
-        id: selectedRequestedChallenge.id,
-        name: selectedRequestedChallenge.name,
-        targetAmount: amount,
-        currentAmount: 0,
-        status: 'active'
-      };
-      
       toast({
         title: "Challenge Approved",
         description: "The challenge has been approved and is now active",
@@ -159,6 +188,13 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   };
 
   const handleRejectChallenge = () => {
+    // Additional security check
+    if (!securityChecks.creatorVerified) {
+      console.error("Security violation: Non-creator attempting to reject challenge");
+      toast.error("Security violation: Unauthorized action");
+      return;
+    }
+
     if (selectedRequestedChallenge && onRejectChallenge) {
       onRejectChallenge(selectedRequestedChallenge.id);
       setShowApproveDialog(false);
@@ -220,6 +256,9 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
     onCreateChallenge(challenge);
     setShowChallengeModal(false);
   };
+
+  const isCurrentUserTheCreator = isCurrentUserCreator();
+  const canAccessCreatorFeatures = isCreator && isCurrentUserTheCreator && viewMode === "creator";
 
   return (
     <div className="w-full bg-stream-panel p-4 border border-stream-border rounded-lg">
@@ -380,7 +419,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                     </div>
                     
                     {/* Only show approve/reject buttons if user is the creator */}
-                    {isCreator && (
+                    {canAccessCreatorFeatures && (
                       <div className="flex items-center justify-end gap-2 mt-3">
                         <Button 
                           size="sm" 
@@ -390,7 +429,8 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                             setSelectedRequestedChallenge(challenge);
                             handleRejectChallenge();
                           }}
-                          className="border-red-600 text-red-500 hover:bg-red-500/10 hover:text-red-400"
+                          disabled={securityChecks.buttonDisabled}
+                          className="border-red-600 text-red-500 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <XCircle className="h-4 w-4" />
                         </Button>
@@ -401,7 +441,8 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                             setSelectedRequestedChallenge(challenge);
                             setShowApproveDialog(true);
                           }}
-                          className="bg-green-700 hover:bg-green-600 text-white"
+                          disabled={securityChecks.buttonDisabled}
+                          className="bg-green-700 hover:bg-green-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                         </Button>
@@ -524,12 +565,14 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                 onClick={handleRejectChallenge}
                 variant="destructive"
                 className="bg-red-700 hover:bg-red-600"
+                disabled={securityChecks.buttonDisabled}
               >
                 <XCircle className="h-4 w-4 mr-1" /> Reject
               </Button>
               <Button
                 onClick={handleApproveChallenge}
                 className="bg-green-700 hover:bg-green-600"
+                disabled={securityChecks.buttonDisabled}
               >
                 <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Challenge
               </Button>

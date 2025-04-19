@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatPanel from '@/components/ChatPanel';
@@ -24,7 +25,9 @@ import {
   approveChallenge,
   rejectChallenge
 } from '@/services/supabaseService';
+import { enforceCreatorSecurity, logSecurityViolation, verifyCreatorAccess } from '@/services/securityService';
 import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export type Message = {
   id: number | string;
@@ -65,7 +68,7 @@ const DEMO_CHANNEL_ID = "00000000-0000-0000-0000-000000000000";
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const { viewMode } = useViewMode();
+  const { viewMode, isCurrentUserCreator } = useViewMode();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentAmount, setCurrentAmount] = useState(0);
@@ -76,7 +79,7 @@ const Index = () => {
   
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
   const [requestedChallenges, setRequestedChallenges] = useState<Challenge[]>([]);
-  const [isCreator, setIsCreator] = useState(false);
+  const [isStreamLive, setIsStreamLive] = useState(false);
 
   const [userAvatarColor] = useState(() => {
     const storedColor = localStorage.getItem('userAvatarColor');
@@ -108,18 +111,20 @@ const Index = () => {
     return newColor;
   });
 
-  // Determine if the current user is a creator based on viewMode and localStorage
+  // Verify if the current user is authorized as a creator
   useEffect(() => {
-    if (user) {
-      if (viewMode === "creator") {
-        setIsCreator(true);
-        localStorage.setItem('creatorId', user.id);
-      } else {
-        const creatorId = localStorage.getItem('creatorId');
-        setIsCreator(creatorId === user.id);
-      }
+    const userIsCreator = isCurrentUserCreator();
+    
+    if (viewMode === "creator" && !userIsCreator && user) {
+      toast.error("You are not authorized to access creator mode", {
+        description: "Switching to viewer mode",
+        duration: 5000,
+      });
+      
+      // Log unauthorized access attempt
+      logSecurityViolation("Unauthorized creator mode access attempt", user.id);
     }
-  }, [user, viewMode]);
+  }, [user, viewMode, isCurrentUserCreator]);
 
   useEffect(() => {
     const fetchActiveChallenge = async () => {
@@ -277,6 +282,20 @@ const Index = () => {
               status: 'active'
             }
           ]);
+          
+          // Add system message about the new active challenge
+          const systemMessage: Message = {
+            id: Date.now(),
+            username: 'SYSTEM',
+            message: `NEW ACTIVE CHALLENGE: ${updatedChallenge.name} - Target: $${updatedChallenge.target_amount}`,
+            emoji: '🎯',
+            type: 'chat',
+            avatarColor: 'bg-neon-red',
+            usernameColor: 'text-neon-red',
+            messageColor: 'text-neon-yellow'
+          };
+          
+          setMessages(prev => [...prev.slice(-49), systemMessage]);
         } else {
           setActiveChallenges(prev => prev.map(c => {
             if (c.id === updatedChallenge.id) {
@@ -455,6 +474,13 @@ const Index = () => {
   };
 
   const handleApproveChallenge = async (challengeId: string, targetAmount: number) => {
+    if (!user) return;
+    
+    // Security check - verify user is the creator
+    if (!enforceCreatorSecurity(user.id, "Approve Challenge")) {
+      return;
+    }
+
     try {
       const approvedChallenge = await approveChallenge(challengeId, targetAmount);
       
@@ -513,6 +539,13 @@ const Index = () => {
   };
   
   const handleRejectChallenge = async (challengeId: string) => {
+    if (!user) return;
+    
+    // Security check - verify user is the creator
+    if (!enforceCreatorSecurity(user.id, "Reject Challenge")) {
+      return;
+    }
+
     try {
       await rejectChallenge(challengeId);
       
@@ -538,6 +571,36 @@ const Index = () => {
     }
   };
 
+  const toggleStreamLive = () => {
+    if (!user) return;
+    
+    // Security check - verify user is the creator
+    if (!enforceCreatorSecurity(user.id, "Toggle Stream Status")) {
+      return;
+    }
+    
+    setIsStreamLive(prev => !prev);
+    
+    const systemMessage: Message = {
+      id: Date.now(),
+      username: 'SYSTEM',
+      message: isStreamLive ? 'STREAM ENDED' : 'STREAM STARTED',
+      emoji: isStreamLive ? '🛑' : '🎬',
+      type: 'chat',
+      avatarColor: 'bg-neon-red',
+      usernameColor: 'text-neon-red',
+      messageColor: 'text-neon-yellow'
+    };
+    
+    setMessages(prev => [...prev.slice(-49), systemMessage]);
+    
+    toast({
+      title: isStreamLive ? "Stream Ended" : "Stream Started",
+      description: isStreamLive ? "The live stream has ended" : "The live stream has started",
+      variant: "default",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-stream-dark text-white flex flex-col">
       <div className="scanlines pointer-events-none fixed inset-0 z-50"></div>
@@ -545,8 +608,8 @@ const Index = () => {
       <header className="border-b border-stream-border p-4 flex items-center justify-between bg-stream-panel/50 backdrop-blur-sm">
         <DumDummiesLogo />
         <div className="flex items-center gap-4">
-          <button className={`${viewMode === "creator" ? "bg-neon-red" : "bg-neon-cyan"} text-white px-3 py-1 text-sm font-bold rounded animate-pulse`}>
-            {viewMode === "creator" ? "STREAMING MODE" : "LIVE"}
+          <button className={`${isStreamLive ? "bg-neon-red" : viewMode === "creator" ? "bg-yellow-500" : "bg-neon-cyan"} text-white px-3 py-1 text-sm font-bold rounded ${isStreamLive ? "animate-pulse" : ""}`}>
+            {isStreamLive ? "LIVE" : viewMode === "creator" ? "CREATOR MODE" : "OFFLINE"}
           </button>
           
           <div className="hidden md:block">
@@ -588,6 +651,15 @@ const Index = () => {
                 <span className="font-bold text-white">CREATOR MODE</span>
               </div>
             )}
+            
+            {isStreamLive && (
+              <div className="absolute top-4 left-4 bg-neon-red/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-neon-red animate-pulse">
+                <span className="font-bold text-white flex items-center gap-2">
+                  <span className="h-3 w-3 bg-white rounded-full animate-pulse"></span>
+                  LIVE
+                </span>
+              </div>
+            )}
           </div>
           
           <ChallengesDashboard 
@@ -597,7 +669,7 @@ const Index = () => {
             onApproveChallenge={handleApproveChallenge}
             onRejectChallenge={handleRejectChallenge}
             onCreateChallenge={handleCreateChallenge}
-            isCreator={viewMode === "creator" || isCreator}
+            isCreator={viewMode === "creator" && isCurrentUserCreator()}
           />
           
           <div className="flex items-center justify-between bg-stream-panel p-4 border border-stream-border rounded-lg">
@@ -616,10 +688,17 @@ const Index = () => {
               </div>
             )}
             
-            {viewMode === "creator" && (
+            {viewMode === "creator" && isCurrentUserCreator() && (
               <div className="flex items-center gap-2">
-                <button className="bg-neon-red text-white px-4 py-2 rounded-md font-bold hover:bg-red-600 transition">
-                  START STREAM
+                <button 
+                  className={`${
+                    isStreamLive 
+                      ? "bg-red-700 hover:bg-red-800" 
+                      : "bg-neon-red hover:bg-red-600"
+                  } text-white px-4 py-2 rounded-md font-bold transition`}
+                  onClick={toggleStreamLive}
+                >
+                  {isStreamLive ? "END STREAM" : "START STREAM"}
                 </button>
               </div>
             )}
