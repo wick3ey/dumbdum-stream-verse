@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 type VideoFeedProps = {
@@ -19,12 +18,6 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText }) => {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Live indicator */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
-        <div className="h-3 w-3 rounded-full bg-red-600 animate-pulse"></div>
-        <span className="text-white font-bold text-xs">LIVE</span>
       </div>
 
       {/* Target reached overlay */}

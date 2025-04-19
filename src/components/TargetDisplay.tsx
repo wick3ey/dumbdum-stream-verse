@@ -1,6 +1,7 @@
 
 import React from 'react';
 import ProgressBar from './ProgressBar';
+import { abbreviateNumber } from '@/utils/formatNumber';
 
 type TargetDisplayProps = {
   challengeName: string;
@@ -31,7 +32,7 @@ const TargetDisplay: React.FC<TargetDisplayProps> = ({
       )}
 
       <div className="bg-stream-panel border border-stream-border p-4 flex items-center justify-center">
-        <div className="text-white text-3xl font-bold">${targetAmount.toFixed(0)}</div>
+        <div className="text-white text-3xl font-bold">{abbreviateNumber(targetAmount)}</div>
       </div>
 
       <div className="text-xs text-right text-neon-orange font-medium">

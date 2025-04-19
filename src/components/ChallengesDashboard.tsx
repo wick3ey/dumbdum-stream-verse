@@ -31,6 +31,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createChallenge } from '@/services/supabaseService';
 import { useViewMode } from '@/App';
 import { toast } from 'sonner';
+import { abbreviateNumber } from '@/utils/formatNumber';
 
 type Challenge = {
   id: string;
@@ -90,7 +91,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
     "EAT RAW ANIMAL ORGAN"
   ];
 
-  // Security verification effect
   useEffect(() => {
     const verifyCreatorPermissions = () => {
       const userIsCreator = isCurrentUserCreator();
@@ -101,7 +101,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
         buttonDisabled: !(userIsCreator && correctMode) && isCreator
       });
       
-      // If someone tries to manipulate the component props directly
       if (isCreator && !userIsCreator && correctMode) {
         console.error("Security violation: Non-creator attempting to access creator features");
         toast.error("You are not authorized to access creator features");
@@ -118,12 +117,10 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   const handleRequestedChallengeSelect = (challenge: Challenge) => {
     setSelectedRequestedChallenge(challenge);
     
-    // Only allow creator to open approve dialog
     if (securityChecks.creatorVerified) {
       setShowApproveDialog(true);
       setTargetAmount('20');
     } else if (isCreator) {
-      // If someone is trying to access creator features without permission
       toast.error("You don't have permission to approve challenges");
     }
   };
@@ -156,7 +153,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   };
 
   const handleApproveChallenge = () => {
-    // Additional security check
     if (!securityChecks.creatorVerified) {
       console.error("Security violation: Non-creator attempting to approve challenge");
       toast.error("Security violation: Unauthorized action");
@@ -187,7 +183,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
   };
 
   const handleRejectChallenge = () => {
-    // Additional security check
     if (!securityChecks.creatorVerified) {
       console.error("Security violation: Non-creator attempting to reject challenge");
       toast.error("Security violation: Unauthorized action");
@@ -335,7 +330,7 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                           <div className="flex items-center gap-1 text-neon-yellow">
                             <CircleDollarSign className="h-4 w-4" />
                             <span className="font-mono">
-                              ${challenge.currentAmount.toFixed(2)} / ${challenge.targetAmount.toFixed(2)}
+                              {abbreviateNumber(challenge.currentAmount)} / {abbreviateNumber(challenge.targetAmount)}
                             </span>
                           </div>
                           
@@ -414,7 +409,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
                       </div>
                     </div>
                     
-                    {/* Only show approve/reject buttons if user is the creator */}
                     {canAccessCreatorFeatures && (
                       <div className="flex items-center justify-end gap-2 mt-3">
                         <Button 
@@ -460,7 +454,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
         </TabsContent>
       </Tabs>
 
-      {/* Donate Dialog */}
       <Dialog open={showDonateDialog} onOpenChange={setShowDonateDialog}>
         <DialogContent className="bg-stream-darker border-stream-border shadow-glow-yellow">
           <DialogHeader>
@@ -522,7 +515,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Approve Challenge Dialog */}
       <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <DialogContent className="bg-stream-darker border-stream-border">
           <DialogHeader>
@@ -577,7 +569,6 @@ const ChallengesDashboard: React.FC<ChallengesDashboardProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Request Challenge Modal - Enhanced with cartoon style */}
       <Dialog open={showChallengeModal} onOpenChange={setShowChallengeModal}>
         <DialogContent className="bg-stream-darker border-2 border-red-500 max-w-2xl p-0 rounded-lg shadow-glow-red overflow-hidden">
           <DialogHeader className="bg-gradient-to-r from-red-900 to-stream-panel p-4 border-b border-stream-border">
