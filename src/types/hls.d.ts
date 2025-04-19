@@ -1,5 +1,5 @@
 
-// This file provides TypeScript type declarations for dynamically loaded HLS.js
+// This file provides simplified TypeScript type declarations for dynamically loaded HLS.js
 
 declare global {
   interface Window {
@@ -16,8 +16,8 @@ declare global {
   
   interface HlsInstance {
     loadSource(url: string): void;
-    attachMedia(video: HTMLVideoElement): void;
-    on(event: string, callback: () => void): void;
+    attachMedia(video: HTMLMediaElement): void;
+    on(event: string, callback: (...args: any[]) => void): void;
     destroy(): void;
   }
 }

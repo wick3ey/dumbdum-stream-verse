@@ -8,27 +8,39 @@ type VideoFeedProps = {
   isLive: boolean;
 };
 
-const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, streamUrl, isLive }) => {
+const VideoFeed = ({ targetReached, targetText, streamUrl, isLive }: VideoFeedProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hlsInstance, setHlsInstance] = useState<any>(null);
+
+  // Clean up function for HLS
+  const destroyHls = () => {
+    if (hlsInstance) {
+      hlsInstance.destroy();
+      setHlsInstance(null);
+    }
+    
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.src = '';
+      videoRef.current.load();
+    }
+  };
 
   useEffect(() => {
     // Reset loading state when stream URL changes
     setIsLoading(true);
     
+    // Clean up previous HLS instance if it exists
+    destroyHls();
+    
     if (!streamUrl || !isLive || !videoRef.current) {
       return;
     }
 
-    // Declare cleanup function
-    let cleanup = () => {};
-
-    // Simple function to initialize video playback
-    const initializeVideo = () => {
-      if (!videoRef.current || !streamUrl) return;
-      
-      // For Safari - Native HLS support
-      if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
+    // For Safari - Native HLS support
+    if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
+      if (videoRef.current) {
         videoRef.current.src = streamUrl;
         videoRef.current.addEventListener('loadedmetadata', () => {
           setIsLoading(false);
@@ -36,79 +48,72 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
             console.error("Safari: Error playing video:", error);
           });
         });
-        return;
       }
+      return;
+    }
 
-      // For other browsers - Use HLS.js
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
-      script.async = true;
-      
-      script.onload = () => {
-        // Check if window.Hls exists and is supported
-        if (window.Hls && window.Hls.isSupported && window.Hls.isSupported() && videoRef.current) {
-          try {
-            const hls = new window.Hls();
-            hls.loadSource(streamUrl);
-            hls.attachMedia(videoRef.current);
-            
-            hls.on('manifestParsed', () => {
-              setIsLoading(false);
-              videoRef.current?.play().catch(e => console.error("HLS: Error playing video:", e));
-            });
-            
-            // Add error handling
-            hls.on('error', (event: any, data: any) => {
-              console.error("HLS error:", data);
-              if (data.fatal) {
-                hls.destroy();
-              }
-            });
-            
-            // Setup cleanup
-            cleanup = () => {
-              hls.destroy();
-              document.body.removeChild(script);
-            };
-          } catch (error) {
-            console.error("Error initializing HLS:", error);
-            setIsLoading(false);
+    // For other browsers - Use HLS.js
+    const loadHls = async () => {
+      try {
+        // Load HLS.js dynamically
+        await new Promise<void>((resolve, reject) => {
+          if (window.Hls && window.Hls.isSupported()) {
+            // HLS.js is already loaded
+            resolve();
+            return;
           }
-        } else {
-          // Fallback for unsupported browsers
-          if (videoRef.current) {
-            try {
-              videoRef.current.src = streamUrl;
-              videoRef.current.play().catch(e => console.error("Fallback: Error playing video:", e));
-              setIsLoading(false);
-            } catch (error) {
-              console.error("Fallback video error:", error);
-              setIsLoading(false);
+          
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Failed to load HLS.js"));
+          document.body.appendChild(script);
+        });
+
+        // Check if HLS.js is supported and initialize
+        if (window.Hls && window.Hls.isSupported() && videoRef.current) {
+          const hls = new window.Hls();
+          setHlsInstance(hls);
+          
+          hls.loadSource(streamUrl);
+          hls.attachMedia(videoRef.current);
+          
+          hls.on('manifestParsed', () => {
+            setIsLoading(false);
+            videoRef.current?.play().catch(e => console.error("HLS: Error playing video:", e));
+          });
+          
+          // Add error handling
+          hls.on('error', (event: any, data: any) => {
+            console.error("HLS error:", data);
+            if (data.fatal) {
+              destroyHls();
             }
+          });
+        } else {
+          // Fallback for browsers without HLS.js support
+          if (videoRef.current) {
+            videoRef.current.src = streamUrl;
+            videoRef.current.addEventListener('canplay', () => {
+              setIsLoading(false);
+            });
+            videoRef.current.play().catch(e => {
+              console.error("Fallback: Error playing video:", e);
+              setIsLoading(false);
+            });
           }
         }
-      };
-      
-      script.onerror = () => {
-        console.error("Failed to load HLS.js library");
+      } catch (error) {
+        console.error("Error initializing video player:", error);
         setIsLoading(false);
-      };
-      
-      document.body.appendChild(script);
-    };
-
-    // Start playback
-    initializeVideo();
-    
-    // Clean up
-    return () => {
-      cleanup();
-      if (videoRef.current) {
-        videoRef.current.pause();
-        videoRef.current.src = '';
-        videoRef.current.load();
       }
     };
+
+    loadHls();
+    
+    // Clean up on component unmount
+    return destroyHls;
   }, [streamUrl, isLive]);
 
   return (
