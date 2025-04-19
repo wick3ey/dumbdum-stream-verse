@@ -8,7 +8,7 @@ type VideoFeedProps = {
   isLive: boolean;
 };
 
-// Define Hls type for TypeScript
+// Define a simplified interface for HLS.js
 interface HlsInstance {
   loadSource(url: string): void;
   attachMedia(video: HTMLVideoElement): void;
@@ -40,17 +40,18 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
           });
         });
       } else {
-        // For browsers without native HLS support, load HLS.js from CDN
+        // For browsers without native HLS support, dynamically load HLS.js from CDN
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
         script.async = true;
         
         script.onload = () => {
+          // The window.Hls object should be available after script loads
           if (window.Hls && window.Hls.isSupported() && videoRef.current) {
             const hls = new window.Hls();
             hls.loadSource(streamUrl);
             hls.attachMedia(videoRef.current);
-            hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+            hls.on('manifestParsed', () => {
               videoRef.current?.play().catch(error => {
                 console.error("Error attempting to play video:", error);
               });
@@ -149,8 +150,6 @@ declare global {
       isSupported(): boolean;
       Events: {
         MANIFEST_PARSED: string;
-        ERROR: string;
-        MEDIA_ATTACHED: string;
       };
     };
   }
