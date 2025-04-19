@@ -1,6 +1,5 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-// We will conditionally load HLS.js instead of importing it directly
 
 type VideoFeedProps = {
   targetReached: boolean;
@@ -9,9 +8,17 @@ type VideoFeedProps = {
   isLive: boolean;
 };
 
+// Define Hls type for TypeScript
+interface HlsInstance {
+  loadSource(url: string): void;
+  attachMedia(video: HTMLVideoElement): void;
+  on(event: string, callback: () => void): void;
+  destroy(): void;
+}
+
 const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, streamUrl, isLive }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [hlsInstance, setHlsInstance] = useState<any>(null);
+  const [hlsInstance, setHlsInstance] = useState<HlsInstance | null>(null);
 
   useEffect(() => {
     if (!streamUrl || !isLive || !videoRef.current) return;
@@ -21,8 +28,6 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
       hlsInstance.destroy();
       setHlsInstance(null);
     }
-
-    let hlsObj: any = null;
 
     // Load video source dynamically
     try {
@@ -35,23 +40,22 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
           });
         });
       } else {
-        // For browsers without native HLS support, dynamically load hls.js script
+        // For browsers without native HLS support, load HLS.js from CDN
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
         script.async = true;
         
         script.onload = () => {
-          // Once the script is loaded, we can use the global HLS object
           if (window.Hls && window.Hls.isSupported() && videoRef.current) {
-            hlsObj = new window.Hls();
-            hlsObj.loadSource(streamUrl);
-            hlsObj.attachMedia(videoRef.current);
-            hlsObj.on(window.Hls.Events.MANIFEST_PARSED, () => {
+            const hls = new window.Hls();
+            hls.loadSource(streamUrl);
+            hls.attachMedia(videoRef.current);
+            hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
               videoRef.current?.play().catch(error => {
                 console.error("Error attempting to play video:", error);
               });
             });
-            setHlsInstance(hlsObj);
+            setHlsInstance(hls);
           }
         };
         
@@ -61,22 +65,22 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
         
         document.body.appendChild(script);
         
-        // Clean up function for script
         return () => {
-          document.body.removeChild(script);
+          if (document.body.contains(script)) {
+            document.body.removeChild(script);
+          }
         };
       }
     } catch (error) {
       console.error("Error setting up video playback:", error);
     }
 
-    // Cleanup function
     return () => {
-      if (hlsObj) {
-        hlsObj.destroy();
+      if (hlsInstance) {
+        hlsInstance.destroy();
       }
     };
-  }, [streamUrl, isLive]);
+  }, [streamUrl, isLive, hlsInstance]);
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-black crt-effect border border-stream-border">
@@ -119,7 +123,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
         <span className="text-neon-green text-sm font-bold">{targetText}</span>
       </div>
 
-      {/* Live indicator on left only - removed duplicate on right side */}
+      {/* Live indicator on left only */}
       {isLive && (
         <div className="absolute top-4 left-4 bg-neon-red/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-neon-red animate-pulse">
           <span className="font-bold text-white flex items-center gap-2">
@@ -140,6 +144,14 @@ export default VideoFeed;
 // Add TypeScript declaration for the global Hls object
 declare global {
   interface Window {
-    Hls: any;
+    Hls: {
+      new(): HlsInstance;
+      isSupported(): boolean;
+      Events: {
+        MANIFEST_PARSED: string;
+        ERROR: string;
+        MEDIA_ATTACHED: string;
+      };
+    };
   }
 }
