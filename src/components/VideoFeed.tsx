@@ -1,6 +1,5 @@
 
 import React, { useRef, useEffect } from 'react';
-import Hls from 'hls.js';
 
 type VideoFeedProps = {
   targetReached: boolean;
@@ -15,29 +14,39 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
   useEffect(() => {
     if (!streamUrl || !isLive || !videoRef.current) return;
 
-    // Initialize HLS if it's supported
-    if (Hls.isSupported() && streamUrl) {
-      const hls = new Hls();
-      hls.loadSource(streamUrl);
-      hls.attachMedia(videoRef.current);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        videoRef.current?.play().catch(error => {
-          console.error("Error attempting to play video:", error);
+    // Load video source dynamically
+    try {
+      if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS support (Safari)
+        videoRef.current.src = streamUrl;
+        videoRef.current.addEventListener('loadedmetadata', () => {
+          videoRef.current?.play().catch(error => {
+            console.error("Error attempting to play video:", error);
+          });
         });
-      });
+      } else {
+        // For browsers without native HLS support, dynamically import hls.js
+        import('hls.js').then(({ default: Hls }) => {
+          if (Hls.isSupported() && videoRef.current) {
+            const hls = new Hls();
+            hls.loadSource(streamUrl);
+            hls.attachMedia(videoRef.current);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              videoRef.current?.play().catch(error => {
+                console.error("Error attempting to play video:", error);
+              });
+            });
 
-      return () => {
-        hls.destroy();
-      };
-    } 
-    // Use native HLS support if available (Safari)
-    else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-      videoRef.current.src = streamUrl;
-      videoRef.current.addEventListener('loadedmetadata', () => {
-        videoRef.current?.play().catch(error => {
-          console.error("Error attempting to play video:", error);
+            return () => {
+              hls.destroy();
+            };
+          }
+        }).catch(err => {
+          console.error("Error loading HLS.js:", err);
         });
-      });
+      }
+    } catch (error) {
+      console.error("Error setting up video playback:", error);
     }
   }, [streamUrl, isLive]);
 
