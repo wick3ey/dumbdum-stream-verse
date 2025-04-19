@@ -82,7 +82,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({ targetReached, targetText, stream
         <span className="text-neon-green text-sm font-bold">{targetText}</span>
       </div>
 
-      {/* Live indicator on left (only show one) */}
+      {/* Live indicator on left only - removed duplicate on right side */}
       {isLive && (
         <div className="absolute top-4 left-4 bg-neon-red/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-neon-red animate-pulse">
           <span className="font-bold text-white flex items-center gap-2">
