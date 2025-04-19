@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Avatar from '@/components/Avatar';
 import ChatPanel from '@/components/ChatPanel';
@@ -106,11 +105,8 @@ const Index = () => {
     return newColor;
   });
 
-  // Determine if current user is the creator
   useEffect(() => {
     if (user) {
-      // In a real app, this would check the actual channel owner
-      // For demo purposes, hardcode the first user as a creator
       const creatorId = localStorage.getItem('creatorId');
       if (!creatorId) {
         localStorage.setItem('creatorId', user.id);
@@ -416,8 +412,6 @@ const Index = () => {
         user_id: user.id
       });
       
-      // The new challenge should arrive via the subscription,
-      // but we can add it manually as well for immediate feedback
       const newChallenge: Challenge = {
         id: `temp-${Date.now()}`,
         name: challengeName.toUpperCase(),
@@ -550,6 +544,7 @@ const Index = () => {
             onDonate={handleDonate}
             onApproveChallenge={handleApproveChallenge}
             onRejectChallenge={handleRejectChallenge}
+            onCreateChallenge={handleCreateChallenge}
             isCreator={isCreator}
           />
           
