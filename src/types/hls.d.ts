@@ -1,6 +1,4 @@
 
-// This file provides simplified TypeScript type declarations for dynamically loaded HLS.js
-
 declare global {
   interface Window {
     Hls: {

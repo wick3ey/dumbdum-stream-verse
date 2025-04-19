@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 
 type VideoFeedProps = {
   targetReached: boolean;
@@ -79,7 +79,7 @@ const VideoFeed = ({ targetReached, targetText, streamUrl, isLive }: VideoFeedPr
           hls.loadSource(streamUrl);
           hls.attachMedia(videoRef.current);
           
-          hls.on('manifestParsed', () => {
+          hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
             setIsLoading(false);
             videoRef.current?.play().catch(e => console.error("HLS: Error playing video:", e));
           });
